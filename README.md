@@ -5,8 +5,7 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 
 - **통화**: 원/달러 · 원/엔(100엔) · 원/유로 · 원/중국위안 (2005년~현재, 매매기준율)
 - **시트**: Daily / Monthly / Quarterly / Annual / Pivot Wide (기간별 평균·기말)
-- **스케줄**: GitHub Actions, 매 평일 17:30 KST (`.github/workflows/fx-ecos.yml`)
-- **수동 실행**: Actions → "ECOS 환율 엑셀" → Run workflow
+- **실행**: 수동 전용 — Actions → "ECOS 환율 엑셀" → Run workflow (`.github/workflows/fx-ecos.yml`)
 - **다운로드**: [output/BOK_exchange_rates.xlsx](output/BOK_exchange_rates.xlsx)
 
 ## 내력

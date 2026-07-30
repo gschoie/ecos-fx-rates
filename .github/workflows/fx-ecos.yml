@@ -1,11 +1,10 @@
 name: ECOS 환율 엑셀
 
-# 매 평일 한국시간 17:30: ECOS 주요국 환율 → output/BOK_exchange_rates.xlsx 갱신
+# 수동 실행 전용: Actions → "ECOS 환율 엑셀" → Run workflow
+# → output/BOK_exchange_rates.xlsx 갱신
 # (기존 Apps Script를 이식 — ECOS가 Google IP를 차단해 UrlFetchApp이 실패)
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "30 8 * * 1-5"   # 08:30 UTC 평일 = 한국 17:30
 
 permissions:
   contents: write   # 갱신된 xlsx 커밋·푸시
