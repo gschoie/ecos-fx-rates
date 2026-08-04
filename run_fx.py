@@ -30,6 +30,7 @@ CURRENCIES = [
     {"code": "0000002", "key": "JPY100_KRW", "label": "원/엔"},
     {"code": "0000003", "key": "EUR_KRW", "label": "원/유로"},
     {"code": "0000053", "key": "CNY_KRW", "label": "원/중국위안"},
+    {"code": "0000017", "key": "AUD_KRW", "label": "원/호주달러"},
 ]
 
 HEADER_FILL = PatternFill("solid", fgColor="CFE8F3")
