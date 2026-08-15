@@ -1,0 +1,49 @@
+name: 피어그룹 주가 엑셀
+
+# 수동 실행 전용: Actions → "피어그룹 주가 엑셀" → Run workflow
+# → output/글로벌_주가_변동률_모니터링_최종.xlsx 갱신 (저장소에서 바로 다운로드)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # 갱신된 xlsx 커밋·푸시
+
+concurrency:
+  group: peergroup-price
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 패키지 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r peergroup/requirements.txt
+
+      - name: 피어그룹 엑셀 생성 (야후 수집 → xlsx)
+        run: python peergroup/weekly_peergroup_price.py
+
+      - name: 커밋 및 푸시
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "output/글로벌_주가_변동률_모니터링_최종.xlsx"
+          if git diff --cached --quiet; then
+            echo "변경 없음 — 커밋 생략"
+          else
+            git commit -m "chore: 피어그룹 주가 엑셀 갱신 $(date -u +%Y-%m-%d)"
+            for i in 1 2 3; do
+              git push origin HEAD:main && { echo "push 성공"; break; }
+              git pull --rebase --autostash origin main || exit 1
+              sleep 3
+            done
+          fi
