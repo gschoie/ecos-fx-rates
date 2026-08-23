@@ -33,6 +33,10 @@ CURRENCIES = [
     {"code": "0000017", "key": "AUD_KRW", "label": "원/호주달러"},
 ]
 
+# Pivot Wide 시트에서 이 기간보다 앞선 열들은 그룹(접기)으로 묶어 접어둔다.
+# 형식: "1Q25"(분기) 또는 "2025"(연도). 빈 문자열이면 접지 않는다.
+PIVOT_COLLAPSE_BEFORE = "1Q25"
+
 HEADER_FILL = PatternFill("solid", fgColor="CFE8F3")
 NUM_FMT = "#,##0.0"
 THIN_BORDER = Border(*(Side(style="thin"),) * 4)
@@ -159,6 +163,22 @@ def write_period_stats_sheet(ws, stats, first_header, sort_key=None):
     style_data_sheet(ws)
 
 
+def collapse_columns_before(ws, periods, cutoff):
+    """cutoff 기간보다 앞선 열들을 하나의 그룹으로 묶고 접어둔다(엑셀 아웃라인)."""
+    if not cutoff:
+        return
+    limit = pivot_period_order(cutoff)
+    old_cols = [i for i, p in enumerate(periods, start=2) if pivot_period_order(p) < limit]
+    if not old_cols:
+        return
+    ws.column_dimensions.group(
+        get_column_letter(min(old_cols)),
+        get_column_letter(max(old_cols)),
+        outline_level=1,
+        hidden=True,
+    )
+
+
 def write_pivot_sheet(ws, daily_map):
     quarterly = build_period_stats(daily_map, get_quarter)
     annual = build_period_stats(daily_map, lambda d: d[:4])
@@ -189,6 +209,8 @@ def write_pivot_sheet(ws, daily_map):
     ws.column_dimensions["A"].width = 18
     for col in range(2, ws.max_column + 1):
         ws.column_dimensions[get_column_letter(col)].width = 11
+
+    collapse_columns_before(ws, periods, PIVOT_COLLAPSE_BEFORE)
 
 
 def main():
