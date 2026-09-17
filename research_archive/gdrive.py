@@ -46,9 +46,25 @@ def _parse_sa_json(raw: str) -> dict:
 
 
 def _credentials():
+    # 사용자 OAuth 우선 (개인 Gmail: 서비스 계정은 저장용량 0이라 업로드 불가)
+    if config.GDRIVE_OAUTH_REFRESH_TOKEN:
+        from google.oauth2.credentials import Credentials as UserCredentials
+        if not (config.GDRIVE_OAUTH_CLIENT_ID and config.GDRIVE_OAUTH_CLIENT_SECRET):
+            raise RuntimeError(
+                "GDRIVE_OAUTH_REFRESH_TOKEN을 쓰려면 GDRIVE_OAUTH_CLIENT_ID와 "
+                "GDRIVE_OAUTH_CLIENT_SECRET도 함께 설정해야 합니다.")
+        return UserCredentials(
+            token=None,
+            refresh_token=config.GDRIVE_OAUTH_REFRESH_TOKEN.strip(),
+            client_id=config.GDRIVE_OAUTH_CLIENT_ID.strip(),
+            client_secret=config.GDRIVE_OAUTH_CLIENT_SECRET.strip(),
+            token_uri="https://oauth2.googleapis.com/token",
+            scopes=SCOPES)
     raw = config.GDRIVE_SA_JSON
     if not raw:
-        raise RuntimeError("GDRIVE_SERVICE_ACCOUNT_JSON 환경변수가 필요합니다.")
+        raise RuntimeError(
+            "Google 인증 정보가 없습니다. GDRIVE_OAUTH_* 3종(권장) 또는 "
+            "GDRIVE_SERVICE_ACCOUNT_JSON을 설정하세요.")
     if os.path.isfile(raw):
         return service_account.Credentials.from_service_account_file(
             raw, scopes=SCOPES)
