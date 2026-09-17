@@ -20,9 +20,12 @@ MASTER_INDEX_SHEET_ID = os.environ.get("MASTER_INDEX_SHEET_ID", "")
 MASTER_INDEX_NAME = "Report Master Index"
 STATE_FILE_NAME = "_archive_state.json"
 
-# ── Claude 분석 ──────────────────────────────────────────────────────
+# ── AI 분석 ──────────────────────────────────────────────────────────
+# 우선순위: ANTHROPIC_API_KEY(유료) > GEMINI_API_KEY(무료 등급 있음) > 휴리스틱
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 # ── 분류 ─────────────────────────────────────────────────────────────
 INDUSTRIES = ["조선", "방산", "기계"]
