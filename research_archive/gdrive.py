@@ -23,6 +23,28 @@ SCOPES = [
 ]
 
 
+def _parse_sa_json(raw: str) -> dict:
+    """서비스 계정 JSON 파싱. 복사 실수(앞뒤 누락/공백/BOM)를 최대한 복구."""
+    s = raw.strip().lstrip("﻿")
+    candidates = [s]
+    if not s.startswith("{"):
+        candidates.append("{" + s)          # 첫 줄 '{' 누락
+    if not s.endswith("}"):
+        candidates += [c + "}" for c in list(candidates)]  # 마지막 '}' 누락
+    for c in candidates:
+        try:
+            d = json.loads(c)
+            if isinstance(d, dict) and d.get("private_key"):
+                return d
+        except json.JSONDecodeError:
+            continue
+    raise RuntimeError(
+        "GDRIVE_SERVICE_ACCOUNT_JSON 시크릿이 올바른 서비스 계정 JSON이 아닙니다. "
+        "다운로드한 .json 키 파일을 메모장으로 열어 Ctrl+A(전체 선택) → Ctrl+C로 "
+        "복사한 뒤, GitHub Secret을 삭제하고 다시 등록하세요. "
+        "내용은 반드시 '{'로 시작해 '}'로 끝나야 합니다.")
+
+
 def _credentials():
     raw = config.GDRIVE_SA_JSON
     if not raw:
@@ -31,7 +53,7 @@ def _credentials():
         return service_account.Credentials.from_service_account_file(
             raw, scopes=SCOPES)
     return service_account.Credentials.from_service_account_info(
-        json.loads(raw), scopes=SCOPES)
+        _parse_sa_json(raw), scopes=SCOPES)
 
 
 class DriveStore:
