@@ -13,17 +13,27 @@
 
 ## 1. 사전 준비 (1회)
 
-### Google Cloud 서비스 계정
-1. [Google Cloud Console](https://console.cloud.google.com)에서 프로젝트 생성
-2. **Drive API**와 **Sheets API** 활성화 (APIs & Services → Enable)
-3. IAM → 서비스 계정 생성 → 키(JSON) 발급·다운로드
-4. Google Drive에 `Research Reports` 폴더를 만들고, 서비스 계정 이메일
-   (`xxx@yyy.iam.gserviceaccount.com`)에게 **편집자**로 공유
-5. 폴더 URL의 ID를 복사 (`https://drive.google.com/drive/folders/<이 부분>`)
+### Google Drive 인증 (사용자 OAuth — 권장)
+> 개인 Gmail 계정에서는 서비스 계정의 저장용량이 0이라 파일 업로드가
+> `storageQuotaExceeded`로 실패합니다. 반드시 아래 사용자 OAuth 방식을 쓰세요.
+> (서비스 계정은 Google Workspace 공유 드라이브에서만 유효 — 코드는 둘 다 지원)
 
-> 참고: 서비스 계정이 업로드한 파일은 서비스 계정의 15GB 무료 용량을 사용합니다.
-> Google Workspace 사용자라면 공유 드라이브(Shared Drive)를 쓰면 이 제약이 없습니다
-> (코드는 둘 다 지원).
+1. [Google Cloud Console](https://console.cloud.google.com)에서 프로젝트 생성,
+   **Drive API**·**Sheets API** 활성화
+2. **OAuth 동의 화면** 구성(External) 후 게시 상태를 **프로덕션**으로 변경
+   (테스트 상태면 refresh token이 7일 뒤 만료됨)
+3. **사용자 인증 정보 → OAuth 클라이언트 ID** 생성(유형: 웹 애플리케이션),
+   승인된 리디렉션 URI에 `https://developers.google.com/oauthplayground` 추가
+   → 클라이언트 ID/보안 비밀 복사
+4. [OAuth Playground](https://developers.google.com/oauthplayground) 접속 →
+   ⚙️ → "Use your own OAuth credentials" 체크 → ID/비밀 입력 →
+   Step 1 스코프에 `https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets`
+   입력 → Authorize APIs → 구글 로그인·허용("확인되지 않은 앱" 경고는
+   고급 → 이동으로 진행) → Step 2 "Exchange authorization code for tokens" →
+   **Refresh token** 복사
+5. Google Drive에 `Research Reports` 폴더를 만들고 폴더 URL의 ID 복사
+   (`https://drive.google.com/drive/folders/<이 부분>`) — 본인 계정으로
+   업로드하므로 폴더 공유는 필요 없음
 
 ### AI 분석 키 (선택 — 무료 옵션 있음)
 PDF 내용 분석(키워드·TP·페이지범위 추출)에 쓸 키. 우선순위대로 하나만 있으면 됨:
@@ -39,8 +49,11 @@ PDF 내용 분석(키워드·TP·페이지범위 추출)에 쓸 키. 우선순�
 
 | Secret | 값 |
 |---|---|
-| `GDRIVE_SERVICE_ACCOUNT_JSON` | 서비스 계정 키 JSON 파일 내용 전체 |
+| `GDRIVE_OAUTH_CLIENT_ID` | OAuth 클라이언트 ID |
+| `GDRIVE_OAUTH_CLIENT_SECRET` | OAuth 클라이언트 보안 비밀 |
+| `GDRIVE_OAUTH_REFRESH_TOKEN` | OAuth Playground에서 받은 refresh token |
 | `GDRIVE_ROOT_FOLDER_ID` | Research Reports 폴더 ID |
+| `GDRIVE_SERVICE_ACCOUNT_JSON` | (Workspace 공유 드라이브 전용) 서비스 계정 키 JSON |
 | `GEMINI_API_KEY` | (권장·무료) Google AI Studio 키 |
 | `ANTHROPIC_API_KEY` | (선택·유료) Anthropic API 키 — 있으면 Gemini보다 우선 사용 |
 | `MASTER_INDEX_SHEET_ID` | (선택) 기존 시트를 쓸 때만. 비우면 자동 생성 |

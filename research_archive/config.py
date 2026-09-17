@@ -10,7 +10,12 @@ TG_PREVIEW_URL = f"https://t.me/s/{CHANNEL}"
 COMPLIANCE_PHRASE = "컴플라이언스 승인을 득한"
 
 # ── Google Drive / Sheets ────────────────────────────────────────────
-# 서비스 계정 JSON: 파일 경로 또는 JSON 문자열 자체
+# 방식 1(권장): 사용자 OAuth — 파일이 본인 소유가 되고 본인 용량 사용.
+#   개인 Gmail에서는 서비스 계정의 저장용량이 0이라 이 방식이 필수.
+GDRIVE_OAUTH_CLIENT_ID = os.environ.get("GDRIVE_OAUTH_CLIENT_ID", "")
+GDRIVE_OAUTH_CLIENT_SECRET = os.environ.get("GDRIVE_OAUTH_CLIENT_SECRET", "")
+GDRIVE_OAUTH_REFRESH_TOKEN = os.environ.get("GDRIVE_OAUTH_REFRESH_TOKEN", "")
+# 방식 2: 서비스 계정 JSON(파일 경로 또는 JSON 문자열) — 공유 드라이브 전용
 GDRIVE_SA_JSON = os.environ.get("GDRIVE_SERVICE_ACCOUNT_JSON", "")
 # 사용자가 서비스 계정에 공유한 "Research Reports" 폴더의 ID (권장)
 GDRIVE_ROOT_FOLDER_ID = os.environ.get("GDRIVE_ROOT_FOLDER_ID", "")
