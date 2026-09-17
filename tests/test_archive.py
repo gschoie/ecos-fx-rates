@@ -77,6 +77,7 @@ def _fake_pdf(text: str) -> bytes:
 
 def test_pipeline_end_to_end(tmp_path, monkeypatch, posts):
     monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")  # 휴리스틱 경로
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "")
     pdf = _fake_pdf("Hanwha Ocean 2026. 9. 16 LNGC report|body page 2")
     monkeypatch.setattr(pl, "fetch_pdf",
                         lambda url: (pdf, url + "/final.pdf"))

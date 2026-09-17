@@ -90,17 +90,27 @@ _PROMPT = """당신은 증권사 리서치 보고서 아카이빙 시스템의 �
 """
 
 
+def _build_prompt(pages: list[str], tg_date: str) -> tuple[str, str]:
+    page_text = "\n".join(f"[PAGE {i+1}] {t}" for i, t in enumerate(pages) if t)
+    if len(page_text) > 60000:
+        page_text = page_text[:60000]
+    prompt = _PROMPT.replace("%INDUSTRIES%", ", ".join(config.INDUSTRIES)) \
+                    .replace("%TG_DATE%", tg_date or "미상")
+    return prompt, page_text
+
+
+def _parse_json(raw: str) -> dict:
+    m = re.search(r"\{.*\}", raw, re.S)
+    if not m:
+        raise ValueError(f"JSON 응답 파싱 실패: {raw[:200]}")
+    return json.loads(m.group(0))
+
+
 def _call_claude(pages: list[str], png: bytes, tg_text: str,
                  tg_date: str) -> dict:
     import anthropic
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
-
-    page_text = "\n".join(f"[PAGE {i+1}] {t}" for i, t in enumerate(pages) if t)
-    if len(page_text) > 60000:
-        page_text = page_text[:60000]
-
-    prompt = _PROMPT.replace("%INDUSTRIES%", ", ".join(config.INDUSTRIES)) \
-                    .replace("%TG_DATE%", tg_date or "미상")
+    prompt, page_text = _build_prompt(pages, tg_date)
 
     msg = client.messages.create(
         model=config.ANTHROPIC_MODEL,
@@ -117,11 +127,35 @@ def _call_claude(pages: list[str], png: bytes, tg_text: str,
             ],
         }],
     )
-    raw = "".join(b.text for b in msg.content if b.type == "text")
-    m = re.search(r"\{.*\}", raw, re.S)
-    if not m:
-        raise ValueError(f"JSON 응답 파싱 실패: {raw[:200]}")
-    return json.loads(m.group(0))
+    return _parse_json("".join(b.text for b in msg.content if b.type == "text"))
+
+
+def _call_gemini(pages: list[str], png: bytes, tg_text: str,
+                 tg_date: str) -> dict:
+    """Google Gemini API (AI Studio 무료 등급 키 사용 가능)."""
+    import requests
+    prompt, page_text = _build_prompt(pages, tg_date)
+    url = ("https://generativelanguage.googleapis.com/v1beta/models/"
+           f"{config.GEMINI_MODEL}:generateContent")
+    body = {
+        "contents": [{
+            "role": "user",
+            "parts": [
+                {"inline_data": {"mime_type": "image/png",
+                                 "data": base64.b64encode(png).decode()}},
+                {"text": f"{prompt}\n\n=== 텔레그램 게시물 ===\n{tg_text[:2000]}"
+                         f"\n\n=== PDF 텍스트 ===\n{page_text}"},
+            ],
+        }],
+        "generationConfig": {"maxOutputTokens": 4000,
+                             "responseMimeType": "application/json"},
+    }
+    r = requests.post(url, json=body, timeout=120,
+                      headers={"x-goog-api-key": config.GEMINI_API_KEY})
+    r.raise_for_status()
+    data = r.json()
+    parts = data["candidates"][0]["content"]["parts"]
+    return _parse_json("".join(p.get("text", "") for p in parts))
 
 
 # ── 휴리스틱 폴백 ────────────────────────────────────────────────────
@@ -165,8 +199,15 @@ def analyze(pdf_bytes: bytes, tg_text: str, tg_date: str,
     meta = ReportMeta(num_pages=n)
 
     if config.ANTHROPIC_API_KEY:
+        ai_call, ai_name = _call_claude, "ai:claude"
+    elif config.GEMINI_API_KEY:
+        ai_call, ai_name = _call_gemini, "ai:gemini"
+    else:
+        ai_call, ai_name = None, ""
+
+    if ai_call:
         try:
-            d = _call_claude(pages, png, tg_text, (tg_date or "")[:10])
+            d = ai_call(pages, png, tg_text, (tg_date or "")[:10])
             meta.published_date = (d.get("published_date") or "")[:10]
             meta.industry = d.get("industry") or config.FALLBACK_INDUSTRY
             meta.doc_type = d.get("doc_type") or ""
@@ -184,7 +225,7 @@ def analyze(pdf_bytes: bytes, tg_text: str, tg_date: str,
                     target_price=str(c.get("target_price") or ""),
                     prev_target_price=str(c.get("prev_target_price") or ""),
                 ))
-            meta.analysis_source = "ai"
+            meta.analysis_source = ai_name
             _sanity(meta, tg_date, tg_title, tg_hashtags, pages)
             return meta
         except Exception as e:  # AI 실패 시 폴백

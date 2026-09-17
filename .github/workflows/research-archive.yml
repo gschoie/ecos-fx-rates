@@ -41,6 +41,7 @@ jobs:
           GDRIVE_ROOT_FOLDER_ID: ${{ secrets.GDRIVE_ROOT_FOLDER_ID }}
           MASTER_INDEX_SHEET_ID: ${{ secrets.MASTER_INDEX_SHEET_ID }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           MODE="${{ github.event.inputs.mode || 'daily' }}"
           LIMIT="${{ github.event.inputs.limit || '0' }}"

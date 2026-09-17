@@ -25,10 +25,14 @@
 > Google Workspace 사용자라면 공유 드라이브(Shared Drive)를 쓰면 이 제약이 없습니다
 > (코드는 둘 다 지원).
 
-### Anthropic API 키
-[console.anthropic.com](https://console.anthropic.com)에서 API 키 발급.
-키가 없으면 AI 분석 대신 휴리스틱(게시물 해시태그/날짜 기반)으로 동작하지만
-키워드·TP·페이지범위 품질이 크게 떨어지므로 키 사용을 권장합니다.
+### AI 분석 키 (선택 — 무료 옵션 있음)
+PDF 내용 분석(키워드·TP·페이지범위 추출)에 쓸 키. 우선순위대로 하나만 있으면 됨:
+
+1. `ANTHROPIC_API_KEY` — [console.anthropic.com](https://console.anthropic.com), 유료 (품질 최상)
+2. `GEMINI_API_KEY` — [aistudio.google.com/apikey](https://aistudio.google.com/apikey)에서
+   **무료** 발급 (신용카드 불필요, 일일 사용량 제한 내 무료 — 일 단위 보고서 처리엔 충분)
+3. 둘 다 없음 — 휴리스틱 모드 (완전 무료). 게시물 해시태그/날짜 기반으로 동작하지만
+   AI 키워드·TP·페이지범위는 추출되지 않음.
 
 ### GitHub Secrets 등록
 저장소 Settings → Secrets and variables → Actions:
@@ -37,7 +41,8 @@
 |---|---|
 | `GDRIVE_SERVICE_ACCOUNT_JSON` | 서비스 계정 키 JSON 파일 내용 전체 |
 | `GDRIVE_ROOT_FOLDER_ID` | Research Reports 폴더 ID |
-| `ANTHROPIC_API_KEY` | Anthropic API 키 |
+| `GEMINI_API_KEY` | (권장·무료) Google AI Studio 키 |
+| `ANTHROPIC_API_KEY` | (선택·유료) Anthropic API 키 — 있으면 Gemini보다 우선 사용 |
 | `MASTER_INDEX_SHEET_ID` | (선택) 기존 시트를 쓸 때만. 비우면 자동 생성 |
 
 ## 2. 실행 순서 (권장)
