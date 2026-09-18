@@ -27,13 +27,14 @@
    → 클라이언트 ID/보안 비밀 복사
 4. [OAuth Playground](https://developers.google.com/oauthplayground) 접속 →
    ⚙️ → "Use your own OAuth credentials" 체크 → ID/비밀 입력 →
-   Step 1 스코프에 `https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets`
+   Step 1 스코프에 `https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets`
    입력 → Authorize APIs → 구글 로그인·허용("확인되지 않은 앱" 경고는
    고급 → 이동으로 진행) → Step 2 "Exchange authorization code for tokens" →
    **Refresh token** 복사
-5. Google Drive에 `Research Reports` 폴더를 만들고 폴더 URL의 ID 복사
-   (`https://drive.google.com/drive/folders/<이 부분>`) — 본인 계정으로
-   업로드하므로 폴더 공유는 필요 없음
+5. `Research Reports` 폴더는 첫 실행 때 **앱이 내 드라이브에 자동 생성**합니다.
+   (`drive.file` 범위는 앱이 만든 파일만 접근하므로, 손으로 만든 기존 폴더는
+   사용되지 않음 — 미리 만든 폴더가 있으면 삭제해도 됨. `GDRIVE_ROOT_FOLDER_ID`
+   시크릿도 필요 없음)
 
 ### AI 분석 키 (선택 — 무료 옵션 있음)
 PDF 내용 분석(키워드·TP·페이지범위 추출)에 쓸 키. 우선순위대로 하나만 있으면 됨:
@@ -52,7 +53,7 @@ PDF 내용 분석(키워드·TP·페이지범위 추출)에 쓸 키. 우선순�
 | `GDRIVE_OAUTH_CLIENT_ID` | OAuth 클라이언트 ID |
 | `GDRIVE_OAUTH_CLIENT_SECRET` | OAuth 클라이언트 보안 비밀 |
 | `GDRIVE_OAUTH_REFRESH_TOKEN` | OAuth Playground에서 받은 refresh token |
-| `GDRIVE_ROOT_FOLDER_ID` | Research Reports 폴더 ID |
+| `GDRIVE_ROOT_FOLDER_ID` | (선택) 사용 안 해도 됨 — 폴더는 앱이 자동 생성 |
 | `GDRIVE_SERVICE_ACCOUNT_JSON` | (Workspace 공유 드라이브 전용) 서비스 계정 키 JSON |
 | `GEMINI_API_KEY` | (권장·무료) Google AI Studio 키 |
 | `ANTHROPIC_API_KEY` | (선택·유료) Anthropic API 키 — 있으면 Gemini보다 우선 사용 |

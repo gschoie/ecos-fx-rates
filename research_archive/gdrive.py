@@ -17,8 +17,9 @@ from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 
 from . import config
 
+# drive.file: 이 앱이 만든 파일/폴더만 접근 (민감하지 않은 범위 — 앱 게시 심사 불필요)
 SCOPES = [
-    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/spreadsheets",
 ]
 
@@ -91,16 +92,27 @@ class DriveStore:
         return res.get("files", [])
 
     def _resolve_root(self) -> str:
+        # 지정된 폴더 ID가 접근 가능하면 사용 (drive.file 범위에서는
+        # 사용자가 손으로 만든 폴더에 접근 불가 → 아래 폴백으로 진행)
         if config.GDRIVE_ROOT_FOLDER_ID:
-            return config.GDRIVE_ROOT_FOLDER_ID
+            try:
+                self.drive.files().get(
+                    fileId=config.GDRIVE_ROOT_FOLDER_ID, fields="id",
+                    supportsAllDrives=True).execute()
+                return config.GDRIVE_ROOT_FOLDER_ID
+            except Exception:
+                print(f"  [warn] GDRIVE_ROOT_FOLDER_ID 접근 불가 — "
+                      f"'{config.ROOT_FOLDER_NAME}' 폴더를 앱이 직접 생성/사용합니다.")
         files = self._query(
             f"name = '{config.ROOT_FOLDER_NAME}' and "
             "mimeType = 'application/vnd.google-apps.folder' and trashed = false")
         if files:
             return files[0]["id"]
-        raise RuntimeError(
-            f"'{config.ROOT_FOLDER_NAME}' 폴더를 찾지 못했습니다. Drive에 폴더를 만들고 "
-            "서비스 계정 이메일에 공유한 뒤 GDRIVE_ROOT_FOLDER_ID를 지정하세요.")
+        f = self.drive.files().create(body={
+            "name": config.ROOT_FOLDER_NAME,
+            "mimeType": "application/vnd.google-apps.folder",
+        }, fields="id", supportsAllDrives=True).execute()
+        return f["id"]
 
     def ensure_folder(self, parent_id: str, name: str) -> str:
         key = (parent_id, name)
