@@ -46,6 +46,21 @@ def _parse_sa_json(raw: str) -> dict:
         "내용은 반드시 '{'로 시작해 '}'로 끝나야 합니다.")
 
 
+def _clean_secret(raw: str) -> str:
+    """복사 실수 보정: 앞뒤 공백·따옴표·쉼표 제거, 줄바꿈 제거."""
+    s = raw.strip().strip('",;\'')
+    return "".join(s.split())
+
+
+def _clean_refresh_token(raw: str) -> str:
+    """전체 JSON 응답을 통째로 붙여넣은 경우 refresh_token 값만 추출."""
+    import re as _re
+    m = _re.search(r'"refresh_token"\s*:\s*"([^"]+)"', raw)
+    if m:
+        return m.group(1)
+    return _clean_secret(raw)
+
+
 def _credentials():
     # 사용자 OAuth 우선 (개인 Gmail: 서비스 계정은 저장용량 0이라 업로드 불가)
     if config.GDRIVE_OAUTH_REFRESH_TOKEN:
@@ -56,9 +71,9 @@ def _credentials():
                 "GDRIVE_OAUTH_CLIENT_SECRET도 함께 설정해야 합니다.")
         return UserCredentials(
             token=None,
-            refresh_token=config.GDRIVE_OAUTH_REFRESH_TOKEN.strip(),
-            client_id=config.GDRIVE_OAUTH_CLIENT_ID.strip(),
-            client_secret=config.GDRIVE_OAUTH_CLIENT_SECRET.strip(),
+            refresh_token=_clean_refresh_token(config.GDRIVE_OAUTH_REFRESH_TOKEN),
+            client_id=_clean_secret(config.GDRIVE_OAUTH_CLIENT_ID),
+            client_secret=_clean_secret(config.GDRIVE_OAUTH_CLIENT_SECRET),
             token_uri="https://oauth2.googleapis.com/token",
             scopes=SCOPES)
     raw = config.GDRIVE_SA_JSON
