@@ -33,6 +33,11 @@ CURRENCIES = [
     {"code": "0000017", "key": "AUD_KRW", "label": "원/호주달러"},
 ]
 
+# Daily 시트를 월~금 연속으로 채운다(휴일은 직전 영업일 값). VLOOKUP이 어떤 평일을
+# 찾아도 값이 나오게 하려는 것. False 로 두면 ECOS 고시일만 담는다(원래 동작).
+# 주의: 채운 값도 평균 계산에 들어가므로 월/분기/연 평균이 고시일만 쓸 때와 달라진다.
+FILL_WEEKDAYS = True
+
 # Pivot Wide 시트에서 이 기간보다 앞선 열들은 그룹(접기)으로 묶어 접어둔다.
 # 형식: "1Q25"(분기) 또는 "2025"(연도). 빈 문자열이면 접지 않는다.
 PIVOT_COLLAPSE_BEFORE = "1Q25"
@@ -99,6 +104,40 @@ def fetch_wide_map(cycle, start, end):
 
 def get_quarter(yyyymmdd):
     return f"{(int(yyyymmdd[4:6]) + 2) // 3}Q{yyyymmdd[2:4]}"
+
+
+def fill_weekday_gaps(daily_map):
+    """월~금 연속 날짜를 만들고, 값이 없는 날은 직전 영업일 값으로 채운다.
+
+    - 마지막 고시일까지만 채운다. 그 뒤(예: 오늘 오전, 아직 고시 전)를 채우면
+      어제 값이 오늘 환율인 것처럼 보이므로 손대지 않는다.
+    - 주말 고시분(2000년대 초반 토요일 자료)은 행으로 남기지 않되, 값은 직전값으로
+      이어받아 다음 평일을 채우는 데 쓴다 — 실제 고시된 정보를 버리지 않기 위함.
+    - 통화별로 따로 이어받는다(특정 통화만 빠진 날이 있다).
+    """
+    if not daily_map:
+        return daily_map
+    keys = sorted(daily_map)
+    start = dt.datetime.strptime(keys[0], "%Y%m%d").date()
+    end = dt.datetime.strptime(keys[-1], "%Y%m%d").date()
+
+    filled, carried = {}, {}
+    day = start
+    while day <= end:
+        key = day.strftime("%Y%m%d")
+        row = daily_map.get(key, {})
+        for currency in CURRENCIES:
+            value = row.get(currency["key"])
+            if value is not None:
+                carried[currency["key"]] = value
+        if day.weekday() < 5 and carried:
+            filled[key] = {
+                c["key"]: row.get(c["key"], carried.get(c["key"]))
+                for c in CURRENCIES
+                if row.get(c["key"], carried.get(c["key"])) is not None
+            }
+        day += dt.timedelta(days=1)
+    return filled
 
 
 def build_period_stats(daily_map, get_period):
@@ -222,6 +261,11 @@ def main():
     daily_map = fetch_wide_map("D", START_DATE, end_date)
     if not daily_map:
         sys.exit("ECOS에서 내려받은 일별 환율 자료가 없습니다.")
+
+    if FILL_WEEKDAYS:
+        before = len(daily_map)
+        daily_map = fill_weekday_gaps(daily_map)
+        print(f"월~금 채우기: 고시일 {before}일 → {len(daily_map)}일")
 
     monthly = build_period_stats(daily_map, lambda d: d[:6])
     quarterly = build_period_stats(daily_map, get_quarter)

@@ -15,6 +15,10 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 
 - **통화**: 원/달러 · 원/엔(100엔) · 원/유로 · 원/중국위안 (2005년~현재, 매매기준율)
 - **시트**: Daily / Monthly / Quarterly / Annual / Pivot Wide (기간별 평균·기말)
+- **Daily는 월~금 연속**: 공휴일 칸은 직전 영업일 값으로 채운다(VLOOKUP이 어떤 평일에도
+  걸리도록). 채운 값도 평균에 들어가므로, 고시일만으로 계산하려면 `run_fx.py` 의
+  `FILL_WEEKDAYS = False` 로 바꾸면 된다. 마지막 고시일 뒤는 채우지 않는다.
+- **Pivot Wide**: `PIVOT_COLLAPSE_BEFORE`(기본 1Q25) 이전 열은 접힌 채로 저장된다
 - **실행**: 수동 전용 — Actions → "ECOS 환율 엑셀" → Run workflow (`.github/workflows/fx-ecos.yml`)
 - **다운로드**: [output/BOK_exchange_rates.xlsx](output/BOK_exchange_rates.xlsx)
 
