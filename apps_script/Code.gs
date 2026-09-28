@@ -89,10 +89,19 @@ function runDaily() {
       posts = fetchNew_(ctx.state.lastSeenId);
     }
     let done = 0;
-    posts.forEach(function (p) {
-      if (processPost_(p, ctx)) done++;
-      ctx.state.lastSeenId = Math.max(ctx.state.lastSeenId || 0, p.msgId);
-    });
+    for (let i = 0; i < posts.length; i++) {
+      try {
+        if (processPost_(posts[i], ctx)) done++;
+      } catch (e) {
+        if (String(e).indexOf('QUOTA_EXHAUSTED') >= 0) {
+          // 한도 소진: 남은 게시물은 내일 실행 때 이어서 처리
+          Logger.log('⏸ Gemini 무료 한도 소진 — 남은 건은 다음 실행에서 처리합니다.');
+          break;
+        }
+        throw e;
+      }
+      ctx.state.lastSeenId = Math.max(ctx.state.lastSeenId || 0, posts[i].msgId);
+    }
     saveState_(ctx);
     Logger.log('Daily 완료: 새 게시물 ' + posts.length + '건 중 보고서 ' + done + '건 처리');
   });
@@ -102,12 +111,18 @@ function runDaily() {
 function runBackfill() {
   deleteTriggers_('runBackfillContinue_');
   runWithLock_(function () {
-    const finished = backfillChunk_();
-    if (!finished) {
+    const result = backfillChunk_();
+    if (result === true) {
+      Logger.log('🎉 Backfill 완료: 채널 처음까지 모두 처리했습니다.');
+    } else if (result === 'quota') {
+      // Gemini 무료 한도 소진: 한도가 회복될 시간을 두고 자동 재개
+      ScriptApp.newTrigger('runBackfillContinue_').timeBased()
+        .after(4 * 60 * 60 * 1000).create();
+      Logger.log('⏸ Gemini 무료 한도 소진 — 4시간 뒤 자동으로 이어서 실행됩니다. ' +
+        '(한도는 매일 리셋되므로 며칠에 걸쳐 자동 완료됩니다)');
+    } else {
       ScriptApp.newTrigger('runBackfillContinue_').timeBased().after(60 * 1000).create();
       Logger.log('시간 제한으로 일시 중단 — 1분 뒤 자동으로 이어서 실행됩니다.');
-    } else {
-      Logger.log('🎉 Backfill 완료: 채널 처음까지 모두 처리했습니다.');
     }
   });
 }
@@ -183,7 +198,16 @@ function processRecent_(limit) {
       if (Date.now() - startMs >= BUDGET_MS) { timeUp = true; break outer; }
       const p = posts[i];
       if (!p.isReport || seen_(ctx.state, p)) continue;
-      if (processPost_(p, ctx)) { done++; saveState_(ctx); }
+      try {
+        if (processPost_(p, ctx)) { done++; saveState_(ctx); }
+      } catch (e) {
+        if (String(e).indexOf('QUOTA_EXHAUSTED') >= 0) {
+          Logger.log('⏸ Gemini 무료 한도 소진 — 한도가 리셋된 뒤(다음날) ' +
+            'runTest15를 다시 실행하면 이어서 처리합니다.');
+          break outer;
+        }
+        throw e;
+      }
     }
     const oldest = posts[0].msgId;
     if (before !== null && oldest >= before) break;
@@ -211,7 +235,12 @@ function backfillChunk_() {
       if (!posts.length) { ctx.state.backfillDone = true; return true; }
       for (let i = posts.length - 1; i >= 0; i--) {
         if (Date.now() - startMs >= BUDGET_MS) return false;
-        if (processPost_(posts[i], ctx)) { done++; saveState_(ctx); }
+        try {
+          if (processPost_(posts[i], ctx)) { done++; saveState_(ctx); }
+        } catch (e) {
+          if (String(e).indexOf('QUOTA_EXHAUSTED') >= 0) return 'quota';
+          throw e;
+        }
       }
       const oldest = posts[0].msgId;
       if (before !== null && oldest >= before) { ctx.state.backfillDone = true; return true; }
@@ -545,7 +574,7 @@ function analyze_(pdfBytes, post) {
   if (key && pdfBytes.length < MAX_PDF_MB * 1024 * 1024) {
     const models = activeGeminiModels_(key);
     Utilities.sleep(3000); // 무료 등급 분당 한도 보호
-    let retried = false;
+    let retried = false, sawQuota = false, sawOther = false;
     for (let mi = 0; mi < models.length; mi++) {
       try {
         const d = callGemini_(models[mi], key, pdfBytes, post.text, tgDate);
@@ -577,11 +606,17 @@ function analyze_(pdfBytes, post) {
         if (msg.indexOf('503') >= 0 && !retried) {
           retried = true; Utilities.sleep(25000); mi--; continue;
         }
-        if (msg.indexOf('404') >= 0 || msg.indexOf('429') >= 0 ||
-            msg.indexOf('503') >= 0) continue; // 다음 모델
+        if (msg.indexOf('429') >= 0 || msg.indexOf('503') >= 0) {
+          sawQuota = true; continue;
+        }
+        if (msg.indexOf('404') >= 0) continue; // 다음 모델
+        sawOther = true;
         break;
       }
     }
+    // 모든 모델이 한도/과부하로 실패 → 휴리스틱으로 낮춰 저장하지 말고
+    // 나중에 다시 시도하도록 위로 알림 (backfill은 자동 재개)
+    if (sawQuota && !sawOther) throw new Error('QUOTA_EXHAUSTED');
   }
 
   // 휴리스틱 폴백
