@@ -1,9 +1,8 @@
 name: Research Archive
 
+# NOTE: 스케줄 실행은 Apps Script 버전(apps_script/)으로 이전되어 비활성화.
+#       이 워크플로는 수동 실행(workflow_dispatch)만 가능.
 on:
-  schedule:
-    # 매일 00:00 UTC = 한국시간 오전 9시
-    - cron: "0 0 * * *"
   workflow_dispatch:
     inputs:
       mode:
