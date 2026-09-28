@@ -490,6 +490,12 @@ function activeGeminiModels_(key) {
       if (merged.length) list = merged;
     }
   } catch (e) { /* 조회 실패 시 기본 목록 사용 */ }
+  // 직전 실행에서 성공한 모델을 맨 앞으로 (한도 초과 모델에 낭비 방지)
+  const lastGood = PropertiesService.getScriptProperties().getProperty('LAST_GOOD_MODEL');
+  if (lastGood && list.indexOf(lastGood) > 0) {
+    list.splice(list.indexOf(lastGood), 1);
+    list.unshift(lastGood);
+  }
   GEMINI_MODEL_CACHE = list;
   Logger.log('  [info] Gemini 모델 후보: ' + list.join(', '));
   return list;
@@ -547,7 +553,8 @@ function analyze_(pdfBytes, post) {
         meta.industry = d.industry || FALLBACK_INDUSTRY;
         meta.docType = d.doc_type || '';
         meta.title = String(d.title || post.titleGuess).trim();
-        meta.keywords = (d.keywords || []).map(function (k) { return String(k).trim(); })
+        meta.keywords = (d.keywords || [])
+          .map(function (k) { return String(k).trim().replace(/\s+/g, ''); })
           .filter(String).slice(0, 4);
         meta.companies = (d.companies || []).filter(function (c) { return c && c.name; })
           .map(function (c) {
@@ -559,16 +566,19 @@ function analyze_(pdfBytes, post) {
             };
           });
         meta.analysisSource = 'ai:' + models[mi];
+        PropertiesService.getScriptProperties()
+          .setProperty('LAST_GOOD_MODEL', models[mi]);
         sanity_(meta, post);
         return meta;
       } catch (e) {
         const msg = String(e);
         Logger.log('  [warn] Gemini(' + models[mi] + ') 실패: ' + msg.slice(0, 150));
-        const transient = msg.indexOf('429') >= 0 || msg.indexOf('503') >= 0;
-        if (transient && !retried) {
-          retried = true; Utilities.sleep(25000); mi--; continue; // 전체에서 1회만 재시도
+        // 429(한도 초과)는 기다려도 소용없는 경우가 많아 바로 다음 모델로
+        if (msg.indexOf('503') >= 0 && !retried) {
+          retried = true; Utilities.sleep(25000); mi--; continue;
         }
-        if (msg.indexOf('404') >= 0 || transient) continue; // 다음 모델
+        if (msg.indexOf('404') >= 0 || msg.indexOf('429') >= 0 ||
+            msg.indexOf('503') >= 0) continue; // 다음 모델
         break;
       }
     }
