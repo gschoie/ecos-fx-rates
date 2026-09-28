@@ -21,7 +21,7 @@ const STATE_FILE_NAME = '_archive_state.json';
 const INDUSTRIES = ['조선', '방산', '기계'];
 const FALLBACK_INDUSTRY = '기타';
 const MAX_FILENAME_LEN = 120;
-const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.8-flash-lite'];
+const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-flash-latest'];
 const MAX_PDF_MB = 19; // Gemini 인라인 첨부 한도
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
@@ -168,18 +168,22 @@ function runWithLock_(fn) {
   try { fn(); } finally { lock.releaseLock(); }
 }
 
-/** 최신 게시물부터 과거로 훑어 보고서 limit건 처리 */
+/** 최신 게시물부터 과거로 훑어 보고서 limit건 처리 (시간 초과 시 재실행하면 이어짐) */
 function processRecent_(limit) {
   const ctx = makeContext_();
-  let before = null, done = 0, pages = 0;
+  const startMs = Date.now();
+  const BUDGET_MS = 4.3 * 60 * 1000;
+  let before = null, done = 0, pages = 0, timeUp = false;
+  outer:
   while (done < limit && pages < 200) {
     const posts = fetchPage_(before);
     if (!posts.length) break;
     pages++;
     for (let i = posts.length - 1; i >= 0 && done < limit; i--) {
+      if (Date.now() - startMs >= BUDGET_MS) { timeUp = true; break outer; }
       const p = posts[i];
       if (!p.isReport || seen_(ctx.state, p)) continue;
-      if (processPost_(p, ctx)) done++;
+      if (processPost_(p, ctx)) { done++; saveState_(ctx); }
     }
     const oldest = posts[0].msgId;
     if (before !== null && oldest >= before) break;
@@ -188,6 +192,9 @@ function processRecent_(limit) {
     Utilities.sleep(700);
   }
   saveState_(ctx);
+  if (timeUp) {
+    Logger.log('⏱ 시간 제한 도달 (' + done + '건 처리) — runTest15를 다시 실행하면 이어서 처리합니다.');
+  }
   return done;
 }
 
@@ -204,7 +211,7 @@ function backfillChunk_() {
       if (!posts.length) { ctx.state.backfillDone = true; return true; }
       for (let i = posts.length - 1; i >= 0; i--) {
         if (Date.now() - startMs >= BUDGET_MS) return false;
-        if (processPost_(posts[i], ctx)) done++;
+        if (processPost_(posts[i], ctx)) { done++; saveState_(ctx); }
       }
       const oldest = posts[0].msgId;
       if (before !== null && oldest >= before) { ctx.state.backfillDone = true; return true; }
@@ -398,7 +405,10 @@ function fetchBytes_(url, referer) {
       if (code >= 400) throw new Error('HTTP ' + code + ' — ' + url);
       return { bytes: resp.getContent(), url: url };
     } catch (e) {
-      lastErr = e; // 'Address unavailable' 등 일시 오류 재시도
+      lastErr = e;
+      // 접속 자체가 불가능한 호스트는 재시도 무의미 (시간 낭비 방지)
+      const em = String(e);
+      if (em.indexOf('Address unavailable') >= 0 || em.indexOf('DNS') >= 0) break;
     }
   }
   throw lastErr;
@@ -455,6 +465,51 @@ function geminiKey_() {
     PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || '').trim();
 }
 
+let GEMINI_MODEL_CACHE = null; // 실행 1회 동안 캐시
+
+/** 이 키로 실제 사용 가능한 모델 목록 조회 (404 방지) */
+function activeGeminiModels_(key) {
+  if (GEMINI_MODEL_CACHE) return GEMINI_MODEL_CACHE;
+  let list = GEMINI_MODELS.slice();
+  try {
+    const resp = UrlFetchApp.fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000',
+      { headers: { 'x-goog-api-key': key }, muteHttpExceptions: true });
+    if (resp.getResponseCode() === 200) {
+      const avail = (JSON.parse(resp.getContentText()).models || [])
+        .filter(function (m) {
+          return (m.supportedGenerationMethods || []).indexOf('generateContent') >= 0;
+        })
+        .map(function (m) { return m.name.replace('models/', ''); });
+      const preferred = GEMINI_MODELS.filter(function (m) { return avail.indexOf(m) >= 0; });
+      const flash = avail.filter(function (n) {
+        return n.indexOf('flash') >= 0 && n.indexOf('image') < 0 &&
+          n.indexOf('tts') < 0 && n.indexOf('live') < 0 && preferred.indexOf(n) < 0;
+      });
+      const merged = preferred.concat(flash).slice(0, 4);
+      if (merged.length) list = merged;
+    }
+  } catch (e) { /* 조회 실패 시 기본 목록 사용 */ }
+  GEMINI_MODEL_CACHE = list;
+  Logger.log('  [info] Gemini 모델 후보: ' + list.join(', '));
+  return list;
+}
+
+/** 진단용: 내 키로 쓸 수 있는 모델 전체를 로그에 출력 */
+function listGeminiModels() {
+  const key = geminiKey_();
+  if (!key) { Logger.log('GEMINI_API_KEY가 비어 있습니다.'); return; }
+  const resp = UrlFetchApp.fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000',
+    { headers: { 'x-goog-api-key': key }, muteHttpExceptions: true });
+  const models = (JSON.parse(resp.getContentText()).models || []);
+  models.forEach(function (m) {
+    if ((m.supportedGenerationMethods || []).indexOf('generateContent') >= 0) {
+      Logger.log(m.name.replace('models/', ''));
+    }
+  });
+}
+
 const ANALYZE_PROMPT =
   '당신은 증권사 리서치 보고서 아카이빙 시스템의 메타데이터 추출기입니다.\n' +
   '첨부된 PDF 보고서와 이 보고서를 공유한 텔레그램 게시물 원문을 보고,\n' +
@@ -482,10 +537,12 @@ function analyze_(pdfBytes, post) {
   const tgDate = (post.dateIso || '').slice(0, 10);
 
   if (key && pdfBytes.length < MAX_PDF_MB * 1024 * 1024) {
+    const models = activeGeminiModels_(key);
+    Utilities.sleep(3000); // 무료 등급 분당 한도 보호
     let retried = false;
-    for (let mi = 0; mi < GEMINI_MODELS.length; mi++) {
+    for (let mi = 0; mi < models.length; mi++) {
       try {
-        const d = callGemini_(GEMINI_MODELS[mi], key, pdfBytes, post.text, tgDate);
+        const d = callGemini_(models[mi], key, pdfBytes, post.text, tgDate);
         meta.publishedDate = String(d.published_date || '').slice(0, 10);
         meta.industry = d.industry || FALLBACK_INDUSTRY;
         meta.docType = d.doc_type || '';
@@ -501,15 +558,15 @@ function analyze_(pdfBytes, post) {
               prevTp: String(c.prev_target_price || ''),
             };
           });
-        meta.analysisSource = 'ai:' + GEMINI_MODELS[mi];
+        meta.analysisSource = 'ai:' + models[mi];
         sanity_(meta, post);
         return meta;
       } catch (e) {
         const msg = String(e);
-        Logger.log('  [warn] Gemini(' + GEMINI_MODELS[mi] + ') 실패: ' + msg.slice(0, 200));
+        Logger.log('  [warn] Gemini(' + models[mi] + ') 실패: ' + msg.slice(0, 150));
         const transient = msg.indexOf('429') >= 0 || msg.indexOf('503') >= 0;
         if (transient && !retried) {
-          retried = true; Utilities.sleep(30000); mi--; continue; // 1회만 재시도
+          retried = true; Utilities.sleep(25000); mi--; continue; // 전체에서 1회만 재시도
         }
         if (msg.indexOf('404') >= 0 || transient) continue; // 다음 모델
         break;
