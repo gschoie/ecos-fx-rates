@@ -136,6 +136,50 @@ function stopBackfill() {
   Logger.log('Backfill 연속 실행을 중단했습니다. runBackfill을 다시 실행하면 이어서 진행됩니다.');
 }
 
+/** 일회용: 이미 조선/에 저장된 "다올 선박" 위클리를 조선_위클리/로 이동 + 시트 갱신.
+ *  파일명에 '다올'이 들어간 것만 자동 이동 — 나머지는 Drive에서 직접 옮기면 됨. */
+function migrateDaolWeekly() {
+  const ctx = makeContext_();
+  const it = ctx.rootFolder.getFoldersByName('조선');
+  if (!it.hasNext()) { Logger.log('조선 폴더가 없습니다.'); return; }
+  const src = it.next();
+  const movedUrls = {};
+  let movedCount = 0;
+  const years = src.getFolders();
+  while (years.hasNext()) {
+    const yf = years.next();
+    const files = yf.getFiles();
+    while (files.hasNext()) {
+      const f = files.next();
+      if (f.getName().indexOf('다올') >= 0) {
+        f.moveTo(industryYearFolder_(ctx, '조선_위클리', yf.getName()));
+        movedUrls[f.getUrl()] = true;
+        movedCount++;
+        Logger.log('이동: ' + yf.getName() + '/' + f.getName());
+      }
+    }
+  }
+  // Master Index의 산업/자료유형 갱신
+  const n = ctx.sheet.getLastRow() - 1;
+  if (n > 0 && movedCount) {
+    const COL = colIndex_();
+    const rng = ctx.sheet.getRange(2, 1, n, INDEX_COLUMNS.length);
+    const vals = rng.getValues();
+    let changed = 0;
+    vals.forEach(function (r) {
+      if (movedUrls[String(r[COL['Google Drive PDF 링크']])]) {
+        r[COL['산업']] = '조선_위클리';
+        if (r[COL['자료유형']] === '산업') r[COL['자료유형']] = '위클리';
+        changed++;
+      }
+    });
+    if (changed) rng.setValues(vals);
+    Logger.log('시트 갱신: ' + changed + '행');
+  }
+  Logger.log('완료: 파일 ' + movedCount + '건 이동. ' +
+    '파일명에 "다올"이 없는 위클리는 Drive에서 직접 끌어 옮겨도 됩니다 (시스템에 지장 없음).');
+}
+
 /** ⚠️ 전체 초기화: 저장된 PDF·시트 기록·처리 이력을 모두 지우고 처음 상태로.
  *  테스트 결과가 마음에 안 들어 처음부터 다시 돌리고 싶을 때만 실행. */
 function resetAllData() {
@@ -598,6 +642,7 @@ function analyze_(pdfBytes, post) {
         PropertiesService.getScriptProperties()
           .setProperty('LAST_GOOD_MODEL', models[mi]);
         sanity_(meta, post);
+        applySeriesRules_(meta, post);
         return meta;
       } catch (e) {
         const msg = String(e);
@@ -628,7 +673,18 @@ function analyze_(pdfBytes, post) {
   meta.companies = comps.map(function (c) {
     return { name: c, pageStart: null, pageEnd: null, rating: '', tp: '', prevTp: '' };
   });
+  applySeriesRules_(meta, post);
   return meta;
+}
+
+/** 시리즈물 분류 규칙: "다올 선박" 위클리는 조선_위클리 폴더로 */
+function applySeriesRules_(meta, post) {
+  const sig = (post.titleGuess || '') + '|' + (meta.title || '') + '|' +
+    (post.text || '').slice(0, 80);
+  if (/다올\s*선박/.test(sig)) {
+    meta.industry = '조선_위클리';
+    meta.docType = '위클리';
+  }
 }
 
 function callGemini_(model, key, pdfBytes, tgText, tgDate) {
@@ -786,7 +842,7 @@ function buildRows_(reportId, meta, post, pdfUrl, driveLink, hist) {
   if (meta.docType === '기업' && meta.companies.length === 1) {
     rows.push(row('기업', meta.companies[0]));
   } else {
-    rows.push(row('산업', null));
+    rows.push(row(meta.docType === '위클리' ? '위클리' : '산업', null));
     meta.companies.forEach(function (c) { rows.push(row('산업자료 내 기업섹션', c)); });
   }
   return rows;
