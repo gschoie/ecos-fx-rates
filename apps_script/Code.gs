@@ -21,7 +21,7 @@ const STATE_FILE_NAME = '_archive_state.json';
 const INDUSTRIES = ['조선', '방산', '기계'];
 const FALLBACK_INDUSTRY = '기타';
 const MAX_FILENAME_LEN = 120;
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
+const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.8-flash-lite'];
 const MAX_PDF_MB = 19; // Gemini 인라인 첨부 한도
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
@@ -119,6 +119,28 @@ function runBackfillContinue_() { runBackfill(); }
 function stopBackfill() {
   deleteTriggers_('runBackfillContinue_');
   Logger.log('Backfill 연속 실행을 중단했습니다. runBackfill을 다시 실행하면 이어서 진행됩니다.');
+}
+
+/** ⚠️ 전체 초기화: 저장된 PDF·시트 기록·처리 이력을 모두 지우고 처음 상태로.
+ *  테스트 결과가 마음에 안 들어 처음부터 다시 돌리고 싶을 때만 실행. */
+function resetAllData() {
+  deleteTriggers_('runBackfillContinue_');
+  const root = getOrCreateFolder_(null, ROOT_FOLDER_NAME);
+  // 산업 폴더 통째로 휴지통으로
+  const folders = root.getFolders();
+  while (folders.hasNext()) folders.next().setTrashed(true);
+  // 상태 파일 삭제
+  const st = root.getFilesByName(STATE_FILE_NAME);
+  while (st.hasNext()) st.next().setTrashed(true);
+  // 시트는 헤더만 남기고 비우기
+  const it = root.getFilesByName(INDEX_NAME);
+  if (it.hasNext()) {
+    const sheet = SpreadsheetApp.open(it.next()).getSheets()[0];
+    if (sheet.getLastRow() > 1) {
+      sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
+    }
+  }
+  Logger.log('초기화 완료. runTest15 또는 runBackfill을 다시 실행하세요.');
 }
 
 /**** ③ 파이프라인 ***********************************************/
@@ -305,7 +327,8 @@ function parseChannelHtml_(html) {
       return /^https?:/i.test(l) && l.indexOf('t.me/') < 0;
     })[0] || null;
     const tm = text.match(/[「『]([^」』]+)[」』]/);
-    const firstLine = (text.trim().split('\n')[0] || '').replace(/[🔥✅☞#]/g, '').trim();
+    const firstLine = stripEmoji_(text.trim().split('\n')[0] || '')
+      .replace(/[☞#]/g, '').trim();
 
     posts.push({
       msgId: msgId,
@@ -316,7 +339,7 @@ function parseChannelHtml_(html) {
       permalink: 'https://t.me/' + m[1],
       isReport: compact.indexOf(COMPLIANCE_PHRASE.replace(/\s+/g, '')) >= 0,
       reportUrl: reportUrl,
-      titleGuess: tm ? tm[1].trim() : firstLine,
+      titleGuess: stripEmoji_(tm ? tm[1] : firstLine).trim(),
     });
   }
   posts.sort(function (a, b) { return a.msgId - b.msgId; });
@@ -324,8 +347,17 @@ function parseChannelHtml_(html) {
 }
 
 function htmlDecode_(s) {
-  return s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&nbsp;/g, ' ');
+  return s.replace(/&#(\d+);/g, function (_, n) { return String.fromCodePoint(parseInt(n, 10)); })
+    .replace(/&#x([0-9a-f]+);/gi, function (_, n) { return String.fromCodePoint(parseInt(n, 16)); })
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+}
+
+/** 이모지·깨진 문자 제거 (파일명/제목용) */
+function stripEmoji_(s) {
+  return String(s || '')
+    .replace(/[\p{Extended_Pictographic}️‍�]/gu, '')
+    .replace(/[\uD800-\uDFFF]/g, ''); // 짝 잃은 서로게이트
 }
 
 /**** ⑤ PDF 다운로드 *********************************************/
@@ -353,14 +385,23 @@ function fetchPdf_(url) {
 }
 
 function fetchBytes_(url, referer) {
-  const resp = UrlFetchApp.fetch(url, {
-    muteHttpExceptions: true, followRedirects: true,
-    headers: { 'User-Agent': UA, 'Referer': referer || url },
-  });
-  if (resp.getResponseCode() >= 400) {
-    throw new Error('HTTP ' + resp.getResponseCode() + ' — ' + url);
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) Utilities.sleep(2000 * attempt);
+    try {
+      const resp = UrlFetchApp.fetch(url, {
+        muteHttpExceptions: true, followRedirects: true,
+        headers: { 'User-Agent': UA, 'Referer': referer || url },
+      });
+      const code = resp.getResponseCode();
+      if (code >= 500) { lastErr = new Error('HTTP ' + code + ' — ' + url); continue; }
+      if (code >= 400) throw new Error('HTTP ' + code + ' — ' + url);
+      return { bytes: resp.getContent(), url: url };
+    } catch (e) {
+      lastErr = e; // 'Address unavailable' 등 일시 오류 재시도
+    }
   }
-  return { bytes: resp.getContent(), url: url };
+  throw lastErr;
 }
 
 function isPdf_(bytes) {
@@ -441,6 +482,7 @@ function analyze_(pdfBytes, post) {
   const tgDate = (post.dateIso || '').slice(0, 10);
 
   if (key && pdfBytes.length < MAX_PDF_MB * 1024 * 1024) {
+    let retried = false;
     for (let mi = 0; mi < GEMINI_MODELS.length; mi++) {
       try {
         const d = callGemini_(GEMINI_MODELS[mi], key, pdfBytes, post.text, tgDate);
@@ -465,8 +507,11 @@ function analyze_(pdfBytes, post) {
       } catch (e) {
         const msg = String(e);
         Logger.log('  [warn] Gemini(' + GEMINI_MODELS[mi] + ') 실패: ' + msg.slice(0, 200));
-        if (msg.indexOf('429') >= 0) { Utilities.sleep(30000); mi--; continue; } // 1회 재시도
-        if (msg.indexOf('404') >= 0) continue; // 다음 모델
+        const transient = msg.indexOf('429') >= 0 || msg.indexOf('503') >= 0;
+        if (transient && !retried) {
+          retried = true; Utilities.sleep(30000); mi--; continue; // 1회만 재시도
+        }
+        if (msg.indexOf('404') >= 0 || transient) continue; // 다음 모델
         break;
       }
     }
@@ -546,7 +591,8 @@ function guessIndustry_(text) {
 /**** ⑦ 파일명 / 인덱스 행 ****************************************/
 
 function clean_(s) {
-  return String(s || '').replace(/[\\\/:*?"<>|\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
+  return stripEmoji_(s).replace(/[\\\/:*?"<>|\n\r\t]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
 }
 
 function buildFilename_(meta) {
@@ -618,6 +664,7 @@ function tpDiff_(hist, comp, rating, tp, prevTpReport) {
 function buildRows_(reportId, meta, post, pdfUrl, driveLink, hist) {
   const today = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
   const kw = meta.keywords.join(', ');
+  const status = meta.analysisSource === 'heuristic' ? '완료(휴리스틱)' : '완료';
 
   function row(docType, c) {
     c = c || { name: '', rating: '', tp: '', prevTp: '', pageStart: null, pageEnd: null };
@@ -630,7 +677,7 @@ function buildRows_(reportId, meta, post, pdfUrl, driveLink, hist) {
     if (c.pageStart) pr = 'p.' + c.pageStart + (c.pageEnd ? '~' + c.pageEnd : '');
     return [reportId, meta.publishedDate, meta.industry, docType, c.name,
       meta.title, kw, c.rating || '', c.tp || '', prevTp, tpChg, ratingChg,
-      pr, post.permalink, pdfUrl, driveLink, today, '완료'];
+      pr, post.permalink, pdfUrl, driveLink, today, status];
   }
 
   const rows = [];
