@@ -110,8 +110,11 @@ function runDaily() {
 /** 과거 게시물 전체 backfill. 5분 단위로 끊어서 자동으로 이어서 실행됨 */
 function runBackfill() {
   deleteTriggers_('runBackfillContinue_');
+  // 예비 재개 트리거를 먼저 걸어둔다: 6분 하드리밋으로 강제 종료돼도 체인 유지
+  ScriptApp.newTrigger('runBackfillContinue_').timeBased().after(8 * 60 * 1000).create();
   runWithLock_(function () {
     const result = backfillChunk_();
+    deleteTriggers_('runBackfillContinue_'); // 예비 트리거 제거 후 아래서 재설정
     if (result === true) {
       Logger.log('🎉 Backfill 완료: 채널 처음까지 모두 처리했습니다.');
     } else if (result === 'quota') {
@@ -270,7 +273,7 @@ function processRecent_(limit) {
 function backfillChunk_() {
   const ctx = makeContext_();
   const startMs = Date.now();
-  const BUDGET_MS = 4.5 * 60 * 1000;
+  const BUDGET_MS = 3.5 * 60 * 1000; // 느린 게시물 여유분 포함 6분 리밋 안쪽
   let before = ctx.state.backfillBefore || null;
   let done = 0;
   try {
