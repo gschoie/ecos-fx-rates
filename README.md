@@ -7,6 +7,7 @@
 | --- | --- | --- |
 | ECOS 환율 | Actions → "ECOS 환율 엑셀" | [output/BOK_exchange_rates.xlsx](output/BOK_exchange_rates.xlsx) |
 | 피어그룹 주가 | Actions → "피어그룹 주가 엑셀" | [output/글로벌_주가_변동률_모니터링_최종.xlsx](output/글로벌_주가_변동률_모니터링_최종.xlsx) |
+| 한화엔진 사업부문 매출 | Actions → "한화엔진 사업부문 매출 엑셀" | [output/한화엔진_사업부문별_매출.xlsx](output/한화엔진_사업부문별_매출.xlsx) |
 
 ## ECOS 환율
 
@@ -32,6 +33,20 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 - **다운로드**: [output/글로벌_주가_변동률_모니터링_최종.xlsx](output/글로벌_주가_변동률_모니터링_최종.xlsx)
 - 원래 GS-output-dashboard에서 아티팩트(zip)로만 받을 수 있었으나, 환율과 같이
   결과 엑셀을 저장소에 커밋하도록 옮겼다 (`peergroup/weekly_peergroup_price.py`).
+
+## 한화엔진 사업부문 매출
+
+한화엔진(082740, 구 두산엔진·HSD엔진) 분기·반기·사업보고서의 'II. 사업의 내용 – 주요 제품(및
+서비스)' 표에서 사업부문별(선박엔진 / 기타) 매출을 뽑아 2005.1Q~현재 시계열로 만든다.
+
+- **출처**: DART 웹사이트(dart.fss.or.kr) — 오픈API 키 불필요
+- **시트**: 분기(3개월) / 분기(누적) / 연간 / Pivot Wide / 원자료 / 설명
+- **단위**: 백만원. 보고서 값은 연초부터 누적이라, 3개월 값은 직전 분기 누적을 빼서 만든다
+- **기타** = 합계 − 선박엔진 (디젤발전·부품(AM)·임대 등, 시기별 세부 부문명은 '원자료' 시트)
+- **추정치(회색 기울임)**: 2010.2Q 이전 보고서는 부문 비율(%)만 공시 → '매출실적' 표 당기 총매출 × 비율
+- **증분 수집**: 받은 보고서의 표는 `dart_segment/extracted.json`에 저장, 다음 실행 때는 새 보고서만 받는다
+- **실행**: 수동 전용 — Actions → "한화엔진 사업부문 매출 엑셀" → Run workflow (`.github/workflows/hanwha-engine-segment.yml`)
+- **로컬**: `python dart_segment/run_segment.py`
 
 ## 내력
 
