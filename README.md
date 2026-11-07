@@ -8,6 +8,7 @@
 | ECOS 환율 | Actions → "ECOS 환율 엑셀" | [output/BOK_exchange_rates.xlsx](output/BOK_exchange_rates.xlsx) |
 | 피어그룹 주가 | Actions → "피어그룹 주가 엑셀" | [output/글로벌_주가_변동률_모니터링_최종.xlsx](output/글로벌_주가_변동률_모니터링_최종.xlsx) |
 | 피어그룹 주가 흐름(이미지) | Actions → "피어그룹 주가 흐름 이미지" | [output/peer_price/](output/peer_price/) |
+| 커버리지 컨센서스 추이(이미지) | Actions → "커버리지 컨센서스 추이 이미지" | [output/consensus/](output/consensus/) |
 
 ## ECOS 환율
 
@@ -47,6 +48,19 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 - **조선주 INDEX 차트 3종**(`peergroup/weekly_peer_index_image.py`, 같은 워크플로): ① KOSPI vs 한국 조선주 ② 한국 조선 7사
   Performance ③ 한/중/일/싱 조선주 비교 — 12주 전=100, 국가 지수는 기준일 USD 시총 가중. 출력 `output/peer_price/조선주_INDEX_3종.png`
   (2×2 묶음) + 낱장 `IDX1_…`·`IDX2_…`·`IDX3_…` (PNG+SVG). 구성은 스크립트 상단 `KR_SHIP`·`GROUPS`.
+
+## 커버리지 컨센서스 추이 (이미지)
+
+위클리용 PNG. 조선·조기·방산·건기 16종목의 **최근 6개월** 영업이익 컨센서스(평균) 추이를
+종목별 작은 차트로 그린다. KOSPI200 컨센 트래커와 같은 FnGuide 컨센서스를 과거 시계열로 직접 받는다.
+
+- **소스**: FnGuide `getCnsTrendChart`(월말, 약 1년) + 네이버 WiseReport `cF5002`(분기 = 주간 13개 시점,
+  연간 = 월말 13개 시점). 겹치는 구간은 네이버 값, 그 이전은 FnGuide 월말 값으로 잇는다
+- **출력**: `output/consensus/컨센서스_추이_분기.png/.csv`(다음 2개 분기, 예: 4Q26·1Q27) +
+  `컨센서스_추이_연간.png/.csv`(올해E·내년E)
+- **종목·순서·섹터**: `consensus/weekly_consensus_chart.py` 상단 `COMPANIES` (섹터, 표시명, 종목코드)
+- **옵션**: `--months 12`(기간), `--since 2026-05-01`, `--mode quarter --periods 2026.12,2027.03`
+- **실행**: Actions → "커버리지 컨센서스 추이 이미지" (`.github/workflows/consensus-chart.yml`)
 
 ## 내력
 
