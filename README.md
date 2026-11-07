@@ -8,6 +8,7 @@
 | ECOS 환율 | Actions → "ECOS 환율 엑셀" | [output/BOK_exchange_rates.xlsx](output/BOK_exchange_rates.xlsx) |
 | 피어그룹 주가 | Actions → "피어그룹 주가 엑셀" | [output/글로벌_주가_변동률_모니터링_최종.xlsx](output/글로벌_주가_변동률_모니터링_최종.xlsx) |
 | 피어그룹 주가 흐름(이미지) | Actions → "피어그룹 주가 흐름 이미지" | [output/peer_price/](output/peer_price/) |
+| 커버리지 컨센서스 추이(이미지) | Actions → "커버리지 컨센서스 추이 이미지" | [output/consensus/](output/consensus/) |
 
 ## ECOS 환율
 
@@ -44,6 +45,18 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 - **기간 기준**: 거래일 오프셋 `TRADING_DAYS`(1W=5·1M=21·3M=63·1Y=252), 스파크라인 `SPARK_DAYS`(63=3M, 126=6M)
 - **실행**: Actions → "피어그룹 주가 흐름 이미지" (`.github/workflows/peer-price-image.yml`)
 - **레이아웃 확인만**: `python peergroup/weekly_peer_price_image.py --demo` (가짜 데이터)
+
+## 커버리지 컨센서스 추이 (이미지)
+
+위클리용 PNG. 조선·조기·방산·건기 16개 종목의 영업이익 컨센서스가 주간 스냅샷별로 어떻게 움직였는지
+종목별 작은 차트로 그린다. 데이터는 GS-DB2 `kospi_consensus/data/consensus.db`(KOSPI200 컨센 트래커, 매주 금·토 스냅샷).
+
+- **출력**: `output/consensus/컨센서스_추이_분기.png`(최신 스냅샷의 마지막 2개 분기, 예: 4Q26·1Q27) +
+  `컨센서스_추이_연간.png`(올해E·내년E)
+- **종목·순서·섹터**: `consensus/weekly_consensus_chart.py` 상단 `COMPANIES` (섹터, 표시명, 종목코드)
+- **옵션**: `--periods 2026.12,2027.03`(기간 직접 지정, `--mode quarter`와 같이), `--since 2026-08-01`, `--db 로컬경로`
+- **실행**: Actions → "커버리지 컨센서스 추이 이미지" (`.github/workflows/consensus-chart.yml`). 트래커가 금·토에 갱신되므로 그 뒤에 돌린다
+- 분기 fwd 컨센(4Q26·1Q27)은 트래커가 2026-10-15부터 수집해 그 전 구간은 비어 있다. 주가 쌓일수록 선이 길어진다
 
 ## 내력
 
