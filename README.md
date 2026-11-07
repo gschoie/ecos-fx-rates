@@ -56,8 +56,8 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 
 - **소스**: FnGuide `getCnsTrendChart`(월말, 약 1년) + 네이버 WiseReport `cF5002`(분기 = 주간 13개 시점,
   연간 = 월말 13개 시점). 겹치는 구간은 네이버 값, 그 이전은 FnGuide 월말 값으로 잇는다
-- **출력**: `output/consensus/컨센서스_추이_분기.png/.csv`(다음 2개 분기, 예: 4Q26·1Q27) +
-  `컨센서스_추이_연간.png/.csv`(올해E·내년E)
+- **출력**: `output/consensus/컨센서스_추이_분기.png/.svg/.csv`(다음 2개 분기, 예: 4Q26·1Q27) +
+  `컨센서스_추이_연간.png/.svg/.csv`(올해E·내년E)
 - **종목·순서·섹터**: `consensus/weekly_consensus_chart.py` 상단 `COMPANIES` (섹터, 표시명, 종목코드)
 - **옵션**: `--months 12`(기간), `--since 2026-05-01`, `--mode quarter --periods 2026.12,2027.03`
 - **실행**: Actions → "커버리지 컨센서스 추이 이미지" (`.github/workflows/consensus-chart.yml`)
