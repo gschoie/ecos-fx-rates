@@ -39,7 +39,7 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 위클리에 그대로 붙여넣는 PNG. 섹션(지수·조선사·엔진/부품·오일/해양·해운)별 표에
 1W/1M/3M/YTD/1Y 등락률 막대 + 최근 3개월 주가 스파크라인 + 52주 고점대비를 그린다.
 
-- **출력**: `output/peer_price/글로벌_피어그룹_주가흐름.png`(전체 1페이지) + 섹션별 PNG(`01_…png`)
+- **출력**: `output/peer_price/글로벌_피어그룹_주가흐름.png`(전체 1페이지) + 섹션별 PNG(`01_…png`). `--split`을 주면 2페이지 분할본도 생성
 - **종목 수정**: `peergroup/weekly_peer_price_image.py` 상단 `SECTIONS` (그룹 라벨·표시명·야후 티커)
 - **스파크라인 기간**: `SPARK_DAYS` (91=3M, 182=6M)
 - **실행**: Actions → "피어그룹 주가 흐름 이미지" (`.github/workflows/peer-price-image.yml`)

@@ -158,7 +158,7 @@ OUTPUT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output", "peer_price")
 PAGE_FILE = "글로벌_피어그룹_주가흐름.png"
 
-# 2페이지 분할본: (파일명, 제목 꼬리, {섹션 제목: 단(0=왼쪽, 1=오른쪽)})
+# 2페이지 분할본(--split 옵션일 때만 생성): (파일명, 제목 꼬리, {섹션 제목: 단(0=왼쪽, 1=오른쪽)})
 SPLIT_PAGES = [
     ("글로벌_피어그룹_주가흐름_p1_조선.png", "조선 · 기자재",
      {"지수 / 원자재": 0, "조선사": 0, "엔진 / 기자재": 1}),
@@ -479,6 +479,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--demo", action="store_true", help="가짜 데이터로 레이아웃만 확인")
     ap.add_argument("--out", default=OUTPUT_DIR)
+    ap.add_argument("--split", action="store_true", help="2페이지 분할본(SPLIT_PAGES)도 생성")
     args = ap.parse_args()
 
     setup_font()
@@ -502,7 +503,7 @@ def main():
     page = os.path.join(args.out, PAGE_FILE)
     render_page(sections_rows, caps, scales, asof, page)
     print(f"🖼  {page}")
-    for fn, sub, layout in SPLIT_PAGES:
+    for fn, sub, layout in (SPLIT_PAGES if args.split else []):
         path = os.path.join(args.out, fn)
         render_page(sections_rows, caps, scales, asof, path, layout=layout, subtitle=sub)
         print(f"🖼  {path}")
