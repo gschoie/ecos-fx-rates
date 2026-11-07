@@ -7,8 +7,8 @@ KOSPI200 컨센서스 트래커와 같은 소스(FnGuide 컨센서스)에서 과
   - 네이버 WiseReport cF5002  : 분기 = 주간 13개 시점, 연간 = 월말 13개 시점
   → 겹치는 구간은 네이버(촘촘한) 값, 그 이전은 FnGuide 월말 값으로 이어 붙인다.
 
-  - 컨센서스_추이_분기.png/.csv : 분기 영업이익 컨센 (기본: 다음 2개 분기, 예: 4Q26·1Q27)
-  - 컨센서스_추이_연간.png/.csv : 연간 영업이익 컨센 (기본: 올해E·내년E)
+  - 컨센서스_추이_분기.png/.svg/.csv : 분기 영업이익 컨센 (기본: 다음 2개 분기, 예: 4Q26·1Q27)
+  - 컨센서스_추이_연간.png/.svg/.csv : 연간 영업이익 컨센 (기본: 올해E·내년E)
 
 실행:
     python consensus/weekly_consensus_chart.py                  # 최근 6개월, 분기·연간 둘 다
@@ -384,6 +384,10 @@ def render(df, kind, periods, since, path, asof):
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     fig.savefig(path, dpi=DPI, facecolor="white")
+    # 같은 그림의 SVG(벡터) — 엑셀·PPT '삽입 → 그림'으로 넣으면 확대해도 선명. 글자는 경로로 묻어
+    # 받는 PC 에 한글 폰트가 없어도 모양이 같다.
+    with plt.rc_context({"svg.fonttype": "path"}):
+        fig.savefig(os.path.splitext(path)[0] + ".svg", facecolor="white")
     plt.close(fig)
     print(f"저장: {path}  ({labels})")
 
