@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>애널리스트 캘린더</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --text:#1f2328; --muted:#6b7280;
+    --seminar:#8250df; --ndr:#bf8700; --report:#e4572e; --today:#fff3e0;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){ --bg:#0f1115; --card:#171a21; --line:#2a2f3a;
+      --text:#e6e8eb; --muted:#9aa3af; --today:#3a2a12; }
+  }
+  :root[data-theme="dark"]{ --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --text:#e6e8eb;
+    --muted:#9aa3af; --today:#3a2a12; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.45 -apple-system,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 16px;
+    background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
+  h1{font-size:18px;margin:0 12px 0 0}
+  .nav button, .seg button, .chip{border:1px solid var(--line);background:var(--card);color:var(--text);
+    border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit}
+  .nav{display:flex;gap:6px;align-items:center}
+  .nav .ym{font-weight:700;min-width:110px;text-align:center}
+  .seg{display:flex;gap:4px;margin-left:auto}
+  .seg button.on{background:var(--text);color:var(--card);border-color:var(--text)}
+  .filters{display:flex;flex-wrap:wrap;gap:6px;padding:10px 16px}
+  .chip{display:inline-flex;gap:6px;align-items:center;font-size:13px}
+  .chip .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .chip.off{opacity:.4}
+  main{padding:0 16px 24px;max-width:1400px;margin:0 auto}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .dow,.cell{background:var(--card)}
+  .dow{padding:6px;text-align:center;font-size:12px;color:var(--muted);font-weight:600}
+  .cell{min-height:118px;padding:6px;display:flex;flex-direction:column;gap:3px}
+  .cell.dim{opacity:.45}
+  .cell.today{background:var(--today)}
+  .cell .d{font-size:12px;color:var(--muted);font-weight:600}
+  .ev{font-size:12px;padding:2px 6px;border-radius:5px;color:#fff;cursor:pointer;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ev.seminar{background:var(--seminar)} .ev.ndr{background:var(--ndr)} .ev.report{background:var(--report)}
+  .list{display:flex;flex-direction:column;gap:10px}
+  .day h3{font-size:13px;color:var(--muted);margin:14px 0 6px}
+  .row{display:grid;grid-template-columns:72px 1fr auto;gap:10px;align-items:center;
+    background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .row .t{font-size:11px;font-weight:700;color:#fff;border-radius:5px;padding:2px 6px;text-align:center}
+  .row .t.seminar{background:var(--seminar)} .row .t.ndr{background:var(--ndr)} .row .t.report{background:var(--report)}
+  .row .who{font-size:12px;color:var(--muted)}
+  .row a{color:inherit}
+  .empty{padding:40px;text-align:center;color:var(--muted)}
+  .pop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;padding:16px}
+  .pop.on{display:flex}
+  .pop .box{background:var(--card);border-radius:12px;padding:18px;max-width:520px;width:100%}
+  .pop h2{margin:0 0 8px;font-size:16px}
+  .pop .meta{color:var(--muted);font-size:13px;margin-bottom:10px}
+  .badge{font-size:11px;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--muted)}
+  footer{padding:16px;text-align:center;color:var(--muted);font-size:12px}
+  @media (max-width:720px){ .cell{min-height:70px} .ev{font-size:0;padding:0;height:6px;border-radius:3px} .row{grid-template-columns:60px 1fr} }
+</style>
+</head>
+<body>
+<header>
+  <h1>📅 애널리스트 캘린더</h1>
+  <div class="nav">
+    <button id="prev">‹</button><span class="ym" id="ym"></span><button id="next">›</button>
+    <button id="today">오늘</button>
+  </div>
+  <div class="seg">
+    <button data-view="month" class="on">월</button>
+    <button data-view="list">목록</button>
+  </div>
+</header>
+<div class="filters" id="filters"></div>
+<main id="main"></main>
+<footer>세미나·NDR: Google Calendar (연동 예정) · 자료발간: 🔥 불꽃 리서치 텔레그램 채널</footer>
+
+<div class="pop" id="pop"><div class="box" id="popbox"></div></div>
+
+<script>
+const TYPES = { seminar:"세미나", ndr:"NDR", report:"자료발간" };
+const state = {
+  view: "month",
+  cur: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  events: [], analysts: [],
+  onType: new Set(Object.keys(TYPES)), onAnalyst: new Set(),
+};
+const $ = (s) => document.querySelector(s);
+const pad = (n) => String(n).padStart(2,"0");
+const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+async function load(){
+  const [a, r, s, n] = await Promise.all(
+    ["/api/analysts","/api/reports","/api/seminars","/api/ndr"]
+      .map(u => fetch(u).then(x => x.json()).catch(() => [])));
+  state.analysts = Array.isArray(a) ? a : [];
+  state.onAnalyst = new Set([...state.analysts.map(x => x.id), "none"]);
+  state.events = [].concat(Array.isArray(r)?r:[], Array.isArray(s)?s:[], Array.isArray(n)?n:[]);
+  renderFilters(); render();
+}
+
+function analyst(id){ return state.analysts.find(a => a.id === id); }
+function visible(){
+  return state.events.filter(e => state.onType.has(e.type) && state.onAnalyst.has(e.analyst || "none"));
+}
+
+function renderFilters(){
+  const f = $("#filters"); f.innerHTML = "";
+  const mk = (label, color, on, cb) => {
+    const b = document.createElement("button"); b.className = "chip" + (on ? "" : " off");
+    b.innerHTML = `<span class="dot" style="background:${color}"></span>${label}`;
+    b.onclick = cb; f.appendChild(b);
+  };
+  for (const [k,v] of Object.entries(TYPES))
+    mk(v, `var(--${k})`, state.onType.has(k), () => { tog(state.onType,k); renderFilters(); render(); });
+  const sep = document.createElement("span"); sep.style.width="12px"; f.appendChild(sep);
+  for (const a of state.analysts)
+    mk(a.name, a.color, state.onAnalyst.has(a.id), () => { tog(state.onAnalyst,a.id); renderFilters(); render(); });
+  mk("미분류", "var(--muted)", state.onAnalyst.has("none"), () => { tog(state.onAnalyst,"none"); renderFilters(); render(); });
+}
+const tog = (set,k) => set.has(k) ? set.delete(k) : set.add(k);
+
+function render(){
+  $("#ym").textContent = `${state.cur.getFullYear()}년 ${state.cur.getMonth()+1}월`;
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.view === state.view));
+  state.view === "month" ? renderMonth() : renderList();
+}
+
+function renderMonth(){
+  const m = $("#main"); m.innerHTML = "";
+  const g = document.createElement("div"); g.className = "grid";
+  for (const d of ["일","월","화","수","목","금","토"]) { const h = document.createElement("div"); h.className="dow"; h.textContent=d; g.appendChild(h); }
+  const first = new Date(state.cur); first.setDate(1 - first.getDay());
+  const today = ymd(new Date());
+  const byDay = {}; for (const e of visible()) (byDay[e.date] ||= []).push(e);
+  for (let i=0;i<42;i++){
+    const d = new Date(first); d.setDate(first.getDate()+i); const key = ymd(d);
+    const c = document.createElement("div");
+    c.className = "cell" + (d.getMonth()!==state.cur.getMonth()?" dim":"") + (key===today?" today":"");
+    c.innerHTML = `<div class="d">${d.getDate()}</div>`;
+    for (const e of (byDay[key]||[]).sort((a,b)=>a.type.localeCompare(b.type))) {
+      const el = document.createElement("div"); el.className = "ev " + e.type;
+      const a = analyst(e.analyst);
+      el.textContent = (a ? `[${a.team}] ` : "") + e.title; el.title = e.title;
+      el.onclick = () => popup(e); c.appendChild(el);
+    }
+    g.appendChild(c);
+  }
+  m.appendChild(g);
+}
+
+function renderList(){
+  const m = $("#main"); m.innerHTML = "";
+  const y = state.cur.getFullYear(), mo = state.cur.getMonth();
+  const evs = visible().filter(e => { const d = new Date(e.date); return d.getFullYear()===y && d.getMonth()===mo; })
+    .sort((a,b) => b.date.localeCompare(a.date) || (b.time||"").localeCompare(a.time||""));
+  if (!evs.length) { m.innerHTML = `<div class="empty">이 달에 표시할 일정이 없습니다.</div>`; return; }
+  const wrap = document.createElement("div"); wrap.className="list";
+  let last = "";
+  for (const e of evs) {
+    if (e.date !== last) { last = e.date; const h = document.createElement("div"); h.className="day";
+      const d = new Date(e.date); h.innerHTML = `<h3>${e.date} (${"일월화수목금토"[d.getDay()]})</h3>`; wrap.appendChild(h); }
+    const a = analyst(e.analyst);
+    const r = document.createElement("div"); r.className="row";
+    r.innerHTML = `<span class="t ${e.type}">${TYPES[e.type]}</span>
+      <div><div>${e.url ? `<a href="${e.url}" target="_blank" rel="noopener">${esc(e.title)}</a>` : esc(e.title)}</div>
+      <div class="who">${a ? a.name : "미분류"}${e.kind ? ` · <span class="badge">${e.kind}</span>` : ""}${(e.tags||[]).map(t=>` #${t}`).join("")}</div></div>
+      ${e.permalink ? `<a class="badge" href="${e.permalink}" target="_blank" rel="noopener">원문</a>` : ""}`;
+    wrap.appendChild(r);
+  }
+  m.appendChild(wrap);
+}
+
+function popup(e){
+  const a = analyst(e.analyst);
+  $("#popbox").innerHTML = `<span class="t badge">${TYPES[e.type]}</span>
+    <h2>${esc(e.title)}</h2>
+    <div class="meta">${e.date}${e.start ? " " + e.start : ""} · ${a ? a.name : "미분류"}${e.kind ? ` · ${e.kind}` : ""}</div>
+    ${e.company ? `<div>기업: ${esc(e.company)}</div>` : ""}${e.location ? `<div>장소: ${esc(e.location)}</div>` : ""}
+    <div style="margin-top:10px;display:flex;gap:8px">
+      ${e.url ? `<a href="${e.url}" target="_blank" rel="noopener">보고서 열기 ↗</a>` : ""}
+      ${e.permalink ? `<a href="${e.permalink}" target="_blank" rel="noopener">텔레그램 원문 ↗</a>` : ""}
+    </div>`;
+  $("#pop").classList.add("on");
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+$("#pop").onclick = (ev) => { if (ev.target === $("#pop")) $("#pop").classList.remove("on"); };
+$("#prev").onclick = () => { state.cur.setMonth(state.cur.getMonth()-1); render(); };
+$("#next").onclick = () => { state.cur.setMonth(state.cur.getMonth()+1); render(); };
+$("#today").onclick = () => { const n = new Date(); state.cur = new Date(n.getFullYear(), n.getMonth(), 1); render(); };
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => { state.view = b.dataset.view; render(); });
+load();
+</script>
+</body>
+</html>

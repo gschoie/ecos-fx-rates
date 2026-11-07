@@ -1,0 +1,16 @@
+name = "analyst-calendar"
+main = "src/worker.js"
+compatibility_date = "2026-10-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[vars]
+# 자료발간 소스 — 🔥 불꽃 리서치 텔레그램 채널 (research_archive 와 동일)
+TG_CHANNEL = "HI_GS"
+# 몇 페이지(약 20건/페이지)까지 과거로 읽을지
+TG_MAX_PAGES = "6"
+# 세미나/NDR 구글 캘린더 (아직 미연결 — 껍데기)
+# GCAL_SEMINAR_ICS = "https://calendar.google.com/calendar/ical/.../basic.ics"
+# GCAL_NDR_ICS     = "https://calendar.google.com/calendar/ical/.../basic.ics"
