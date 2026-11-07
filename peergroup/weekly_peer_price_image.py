@@ -44,7 +44,7 @@ SECTIONS = [
         "title": "지수 / 원자재", "column": 0, "market_cap": False,
         "groups": [
             ("유가", [("WTI", "CL=F"), ("Brent", "BZ=F")]),
-            ("가스", [("Henry Hub", "NG=F")]),
+            ("천연가스", [("Henry Hub(美)", "NG=F"), ("TTF(歐)", "TTF=F"), ("JKM(亞 LNG)", "JKM=F")]),
             ("운임", [("BDRY(BDI ETF)", "BDRY")]),
             ("환율", [("원/달러", "KRW=X")]),
         ],
