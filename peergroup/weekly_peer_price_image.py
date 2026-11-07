@@ -128,8 +128,8 @@ SPARK_DAYS = 63
 
 # 표 열: (키, 헤더, 폭[행높이 대비 단위]). 순서·폭만 바꾸면 레이아웃이 따라온다.
 COLUMNS = [
-    ("group", "구분", 3.4),
-    ("name", "회사명", 5.6),
+    ("group", "구분", 3.9),
+    ("name", "회사명", 6.3),
     ("mcap", "시총\n($m)", 3.0),
     ("1W", "1W", 3.6),
     ("1M", "1M", 3.6),
@@ -146,20 +146,20 @@ BRAND = "#A68A64"      # 상단·섹션 제목 바 (스크린샷 갈색)
 HEAD_BG = "#DDEBF7"    # 열 헤더 배경
 UP = "#D62728"         # 상승(빨강, 국내 관례)
 DOWN = "#1F5FBF"       # 하락(파랑)
-UP_BAR = "#F4B6B6"
-DOWN_BAR = "#B7CCEE"
-GRID = "#BFBFBF"
-TEXT = "#222222"
-MUTED = "#7F7F7F"
+UP_BAR = "#F3A6A6"
+DOWN_BAR = "#A9C4EC"
+GRID = "#A6A6A6"
+TEXT = "#000000"
+MUTED = "#595959"
 
-ROW_IN = 0.205         # 행 높이(inch)
+ROW_IN = 0.225         # 행 높이(inch) — 엑셀에 축소해 붙여도 글자가 읽히도록 크게
 DPI = 220
 
 OUTPUT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output", "peer_price")
 PAGE_FILE = "글로벌_피어그룹_주가흐름.png"
 
-# 2페이지 분할본(--split 옵션일 때만 생성): (파일명, 제목 꼬리, {섹션 제목: 단(0=왼쪽, 1=오른쪽)})
+# 2페이지 분할본(기본 생성, --no-split 으로 생략): (파일명, 제목 꼬리, {섹션 제목: 단(0=왼쪽, 1=오른쪽)})
 SPLIT_PAGES = [
     ("글로벌_피어그룹_주가흐름_p1_조선.png", "조선 · 기자재",
      {"지수 / 원자재": 0, "조선사": 0, "엔진 / 기자재": 1}),
@@ -329,13 +329,13 @@ def draw_section(ax, section, rows, caps, col_scale):
 
     # 섹션 제목 바
     ax.add_patch(Rectangle((0, 0.1), W, 1.0, color=BRAND, lw=0))
-    ax.text(0.35, 0.6, section["title"], color="white", fontsize=9.5,
+    ax.text(0.35, 0.6, section["title"], color="white", fontsize=13,
             fontweight="bold", va="center", ha="left")
 
     # 열 헤더
     y0 = 1.25
     ax.add_patch(Rectangle((0, y0), W, 1.7, color=HEAD_BG, lw=0))
-    ax.plot([0, W], [y0 + 1.7, y0 + 1.7], color=TEXT, lw=0.8)
+    ax.plot([0, W], [y0 + 1.7, y0 + 1.7], color=TEXT, lw=1.1)
     xs = np.cumsum([0] + [w for _, _, w in COLUMNS])
     xpos = {k: (xs[i], w) for i, (k, _, w) in enumerate(COLUMNS)}
     spark_label = f"{SPARK_DAYS // 21}M" if SPARK_DAYS % 21 == 0 else f"{SPARK_DAYS}D"
@@ -343,7 +343,7 @@ def draw_section(ax, section, rows, caps, col_scale):
         x, _ = xpos[k]
         txt = label.format(spark_label) if k == "spark" else label
         ha, tx = ("left", x + 0.25) if k in ("group", "name") else ("center", x + w / 2)
-        ax.text(tx, y0 + 0.85, txt, fontsize=6.8, fontweight="bold", color=TEXT,
+        ax.text(tx, y0 + 0.85, txt, fontsize=9.5, fontweight="bold", color=TEXT,
                 ha=ha, va="center", linespacing=1.0)
 
     top = y0 + 1.7
@@ -351,19 +351,19 @@ def draw_section(ax, section, rows, caps, col_scale):
     for i, r in enumerate(rows):
         yc = top + i + 0.5
         if r["group_start"] and i > 0:
-            ax.plot([0, W], [top + i, top + i], color=GRID, lw=0.6)
+            ax.plot([0, W], [top + i, top + i], color=GRID, lw=0.8)
         elif i > 0:
-            ax.plot([xpos["name"][0], W], [top + i, top + i], color="#E6E6E6", lw=0.4)
+            ax.plot([xpos["name"][0], W], [top + i, top + i], color="#D9D9D9", lw=0.6)
 
-        ax.text(xpos["group"][0] + 0.25, yc, r["group"], fontsize=7, color=TEXT,
+        ax.text(xpos["group"][0] + 0.25, yc, r["group"], fontsize=9.5, color=TEXT,
                 va="center", fontweight="bold")
-        ax.text(xpos["name"][0] + 0.25, yc, r["name"], fontsize=7, color=TEXT, va="center")
+        ax.text(xpos["name"][0] + 0.25, yc, r["name"], fontsize=9.5, color=TEXT, va="center")
 
         if section.get("market_cap", True):
             mc = caps.get(r["ticker"])
             if mc and np.isfinite(mc):
                 x, w = xpos["mcap"]
-                ax.text(x + w - 0.25, yc, f"{mc:,.0f}", fontsize=6.8, color=TEXT,
+                ax.text(x + w - 0.25, yc, f"{mc:,.0f}", fontsize=9.5, color=TEXT,
                         ha="right", va="center")
 
         for k in BAR_KEYS:
@@ -376,10 +376,10 @@ def draw_section(ax, section, rows, caps, col_scale):
             frac = max(-1.0, min(1.0, v / col_scale[k])) if col_scale[k] > 0 else 0
             ax.add_patch(Rectangle((mid, yc - 0.32), frac * half, 0.64,
                                    color=UP_BAR if v >= 0 else DOWN_BAR, lw=0))
-            ax.plot([mid, mid], [yc - 0.42, yc + 0.42], color="#9A9A9A", lw=0.4)
-            ax.text(x + w / 2, yc, fmt_pct(v), fontsize=6.4, va="center", ha="center",
+            ax.plot([mid, mid], [yc - 0.42, yc + 0.42], color="#8C8C8C", lw=0.6)
+            ax.text(x + w / 2, yc, fmt_pct(v), fontsize=9.5, va="center", ha="center",
                     color=UP if v > 0 else DOWN if v < 0 else TEXT,
-                    fontweight="bold" if k in ("1W", "3M") else "normal")
+                    fontweight="bold")
 
         sp = r.get("spark")
         if sp is not None and len(sp) > 1:
@@ -390,9 +390,9 @@ def draw_section(ax, section, rows, caps, col_scale):
             sax = ax.inset_axes([fx0, fy0, fx1 - fx0, fy1 - fy0])
             vals = sp.values.astype(float)
             col = UP if vals[-1] >= vals[0] else DOWN
-            sax.axhline(vals[0], color="#B0B0B0", lw=0.4, ls=(0, (2, 2)))
-            sax.plot(np.arange(len(vals)), vals, color=col, lw=0.8)
-            sax.plot(len(vals) - 1, vals[-1], "o", ms=1.6, color=col)
+            sax.axhline(vals[0], color="#A0A0A0", lw=0.6, ls=(0, (2, 2)))
+            sax.plot(np.arange(len(vals)), vals, color=col, lw=1.4)
+            sax.plot(len(vals) - 1, vals[-1], "o", ms=2.6, color=col)
             pad = (vals.max() - vals.min()) * 0.08 or 1
             sax.set_ylim(vals.min() - pad, vals.max() + pad)
             sax.set_xlim(-1, len(vals))
@@ -400,10 +400,10 @@ def draw_section(ax, section, rows, caps, col_scale):
 
     # 하단 마감선 + 세로 구분선
     bottom = top + len(rows)
-    ax.plot([0, W], [bottom, bottom], color=TEXT, lw=0.8)
+    ax.plot([0, W], [bottom, bottom], color=TEXT, lw=1.1)
     for k in ("mcap", "1W", "spark", "YTD"):
         x, _ = xpos[k]
-        ax.plot([x, x], [y0 + 0.15, bottom], color="#D0D0D0", lw=0.4)
+        ax.plot([x, x], [y0 + 0.15, bottom], color="#C8C8C8", lw=0.6)
 
 
 def column_scales(all_rows):
@@ -450,8 +450,15 @@ def render_page(sections_rows, caps, scales, asof, path, layout=None, subtitle="
              f"기준일 {asof:%Y.%m.%d}  |  자료: Yahoo Finance  |  등락률은 현지통화 종가 기준, 거래일 오프셋 1W=5·1M=21·3M=63·1Y=252, "
              "YTD=전년 마지막 종가 대비  |  시총은 USD 백만달러  |  "
              f"스파크라인: 최근 {SPARK_DAYS}거래일 (점선=기간 시작가)",
-             fontsize=6.3, color=MUTED, va="bottom")
+             fontsize=8.5, color=MUTED, va="bottom")
+    save_fig(fig, path)
+
+
+def save_fig(fig, path):
+    """PNG + 같은 이름의 SVG(벡터). 엑셀/PPT에 SVG로 넣으면 확대해도 선명하다."""
     fig.savefig(path, dpi=DPI, facecolor="white")
+    plt.rcParams["svg.fonttype"] = "path"   # 글꼴을 외곽선으로 박아 받는 쪽 폰트와 무관
+    fig.savefig(os.path.splitext(path)[0] + ".svg", facecolor="white")
     plt.close(fig)
 
 
@@ -463,15 +470,14 @@ def render_single(sec, rows, caps, scales, path):
     fig = plt.figure(figsize=(w, h), dpi=DPI)
     ax = fig.add_axes([pad / w, pad / h, 1 - 2 * pad / w, 1 - 2 * pad / h])
     draw_section(ax, sec, rows, caps, scales)
-    fig.savefig(path, dpi=DPI, facecolor="white")
-    plt.close(fig)
+    save_fig(fig, path)
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--demo", action="store_true", help="가짜 데이터로 레이아웃만 확인")
     ap.add_argument("--out", default=OUTPUT_DIR)
-    ap.add_argument("--split", action="store_true", help="2페이지 분할본(SPLIT_PAGES)도 생성")
+    ap.add_argument("--no-split", action="store_true", help="2페이지 분할본(SPLIT_PAGES) 생성 생략")
     args = ap.parse_args()
 
     setup_font()
@@ -495,7 +501,7 @@ def main():
     page = os.path.join(args.out, PAGE_FILE)
     render_page(sections_rows, caps, scales, asof, page)
     print(f"🖼  {page}")
-    for fn, sub, layout in (SPLIT_PAGES if args.split else []):
+    for fn, sub, layout in ([] if args.no_split else SPLIT_PAGES):
         path = os.path.join(args.out, fn)
         render_page(sections_rows, caps, scales, asof, path, layout=layout, subtitle=sub)
         print(f"🖼  {path}")
