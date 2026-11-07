@@ -44,6 +44,9 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 - **기간 기준**: 거래일 오프셋 `TRADING_DAYS`(1W=5·1M=21·3M=63·1Y=252), 스파크라인 `SPARK_DAYS`(63=3M, 126=6M)
 - **실행**: Actions → "피어그룹 주가 흐름 이미지" (`.github/workflows/peer-price-image.yml`)
 - **레이아웃 확인만**: `python peergroup/weekly_peer_price_image.py --demo` (가짜 데이터)
+- **조선주 INDEX 차트 3종**(`peergroup/weekly_peer_index_image.py`, 같은 워크플로): ① KOSPI vs 한국 조선주 ② 한국 조선 7사
+  Performance ③ 한/중/일/싱 조선주 비교 — 12주 전=100, 국가 지수는 기준일 USD 시총 가중. 출력 `output/peer_price/조선주_INDEX_3종.png`
+  (2×2 묶음) + 낱장 `IDX1_…`·`IDX2_…`·`IDX3_…` (PNG+SVG). 구성은 스크립트 상단 `KR_SHIP`·`GROUPS`.
 
 ## 내력
 
