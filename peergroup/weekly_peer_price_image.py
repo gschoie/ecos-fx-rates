@@ -121,8 +121,10 @@ SECTIONS = [
     },
 ]
 
-# 스파크라인 기간(일). 91 = 3개월, 182 = 6개월
-SPARK_DAYS = 91
+# 등락률·스파크라인 기준은 거래일 오프셋(커버리지 수급 페이지와 동일): 1W=5, 1M=21, 3M=63, 1Y=252
+TRADING_DAYS = {"1W": 5, "1M": 21, "3M": 63, "1Y": 252}
+# 스파크라인 기간(거래일). 63 = 3개월, 126 = 6개월
+SPARK_DAYS = 63
 
 # 표 열: (키, 헤더, 폭[행높이 대비 단위]). 순서·폭만 바꾸면 레이아웃이 따라온다.
 COLUMNS = [
@@ -276,16 +278,16 @@ def demo_data(tickers, seed=7):
 def compute_metrics(s):
     last_d, last = s.index[-1], float(s.iloc[-1])
 
-    def ret_since(days):
-        past = s.loc[s.index <= last_d - timedelta(days=days)]
-        return last / float(past.iloc[-1]) - 1 if not past.empty else np.nan
+    def ret_since(n):
+        """n 거래일 전 종가 대비 (해당 종목의 거래일 기준)."""
+        return last / float(s.iloc[-1 - n]) - 1 if len(s) > n else np.nan
 
     prev_year = s.loc[s.index < datetime(last_d.year, 1, 1)]
     ytd = last / float(prev_year.iloc[-1]) - 1 if not prev_year.empty else np.nan
     return {
-        "1W": ret_since(7), "1M": ret_since(30), "3M": ret_since(91),
-        "YTD": ytd, "1Y": ret_since(365),
-        "spark": s.loc[s.index >= last_d - timedelta(days=SPARK_DAYS)],
+        **{k: ret_since(n) for k, n in TRADING_DAYS.items()},
+        "YTD": ytd,
+        "spark": s.iloc[-(SPARK_DAYS + 1):],
         "last_date": last_d,
     }
 
@@ -336,7 +338,7 @@ def draw_section(ax, section, rows, caps, col_scale):
     ax.plot([0, W], [y0 + 1.7, y0 + 1.7], color=TEXT, lw=0.8)
     xs = np.cumsum([0] + [w for _, _, w in COLUMNS])
     xpos = {k: (xs[i], w) for i, (k, _, w) in enumerate(COLUMNS)}
-    spark_label = f"{SPARK_DAYS // 30}M" if SPARK_DAYS % 30 < 5 else f"{SPARK_DAYS}D"
+    spark_label = f"{SPARK_DAYS // 21}M" if SPARK_DAYS % 21 == 0 else f"{SPARK_DAYS}D"
     for k, label, w in COLUMNS:
         x, _ = xpos[k]
         txt = label.format(spark_label) if k == "spark" else label
@@ -454,8 +456,9 @@ def render_page(sections_rows, caps, scales, asof, path, layout=None, subtitle="
             y_in += h_in + gap_units * ROW_IN
 
     fig.text(margin / fig_w, (margin * 0.6) / fig_h,
-             "자료: Yahoo Finance  |  등락률은 현지통화 종가 기준, 시총은 USD 백만달러  |  "
-             f"스파크라인: 최근 {SPARK_DAYS}일 (점선=기간 시작가)",
+             "자료: Yahoo Finance  |  등락률은 현지통화 종가 기준, 거래일 오프셋 1W=5·1M=21·3M=63·1Y=252, "
+             "YTD=전년 마지막 종가 대비  |  시총은 USD 백만달러  |  "
+             f"스파크라인: 최근 {SPARK_DAYS}거래일 (점선=기간 시작가)",
              fontsize=6.3, color=MUTED, va="bottom")
     fig.savefig(path, dpi=DPI, facecolor="white")
     plt.close(fig)
