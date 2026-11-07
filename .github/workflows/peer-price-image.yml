@@ -1,0 +1,55 @@
+name: 피어그룹 주가 흐름 이미지
+
+# 수동 실행 전용: Actions → "피어그룹 주가 흐름 이미지" → Run workflow
+# → output/peer_price/*.png 갱신 (위클리에 바로 붙여넣는 그림)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # 갱신된 png 커밋·푸시
+
+concurrency:
+  group: peer-price-image
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 한글 폰트 설치
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q fonts-nanum
+          rm -rf ~/.cache/matplotlib
+
+      - name: 패키지 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r peergroup/requirements.txt
+
+      - name: 이미지 생성 (야후 수집 → png)
+        run: python peergroup/weekly_peer_price_image.py
+
+      - name: 커밋 및 푸시
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add output/peer_price
+          if git diff --cached --quiet; then
+            echo "변경 없음 — 커밋 생략"
+          else
+            git commit -m "chore: 피어그룹 주가 흐름 이미지 갱신 $(date -u +%Y-%m-%d)"
+            for i in 1 2 3; do
+              git push origin HEAD:main && { echo "push 성공"; break; }
+              git pull --rebase --autostash origin main || exit 1
+              sleep 3
+            done
+          fi

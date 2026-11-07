@@ -7,6 +7,7 @@
 | --- | --- | --- |
 | ECOS 환율 | Actions → "ECOS 환율 엑셀" | [output/BOK_exchange_rates.xlsx](output/BOK_exchange_rates.xlsx) |
 | 피어그룹 주가 | Actions → "피어그룹 주가 엑셀" | [output/글로벌_주가_변동률_모니터링_최종.xlsx](output/글로벌_주가_변동률_모니터링_최종.xlsx) |
+| 피어그룹 주가 흐름(이미지) | Actions → "피어그룹 주가 흐름 이미지" | [output/peer_price/](output/peer_price/) |
 
 ## ECOS 환율
 
@@ -32,6 +33,17 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 - **다운로드**: [output/글로벌_주가_변동률_모니터링_최종.xlsx](output/글로벌_주가_변동률_모니터링_최종.xlsx)
 - 원래 GS-output-dashboard에서 아티팩트(zip)로만 받을 수 있었으나, 환율과 같이
   결과 엑셀을 저장소에 커밋하도록 옮겼다 (`peergroup/weekly_peergroup_price.py`).
+
+## 피어그룹 주가 흐름 (이미지)
+
+위클리에 그대로 붙여넣는 PNG. 섹션(지수·조선사·엔진/부품·오일/해양·해운)별 표에
+1W/1M/3M/YTD/1Y 등락률 막대 + 최근 3개월 주가 스파크라인 + 52주 고점대비를 그린다.
+
+- **출력**: `output/peer_price/글로벌_피어그룹_주가흐름.png`(전체 1페이지) + 섹션별 PNG(`01_…png`)
+- **종목 수정**: `peergroup/weekly_peer_price_image.py` 상단 `SECTIONS` (그룹 라벨·표시명·야후 티커)
+- **스파크라인 기간**: `SPARK_DAYS` (91=3M, 182=6M)
+- **실행**: Actions → "피어그룹 주가 흐름 이미지" (`.github/workflows/peer-price-image.yml`)
+- **레이아웃 확인만**: `python peergroup/weekly_peer_price_image.py --demo` (가짜 데이터)
 
 ## 내력
 
