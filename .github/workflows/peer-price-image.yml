@@ -38,6 +38,9 @@ jobs:
       - name: 이미지 생성 (야후 수집 → png)
         run: python peergroup/weekly_peer_price_image.py
 
+      - name: 조선주 INDEX 차트 3종 (야후 수집 → png/svg)
+        run: python peergroup/weekly_peer_index_image.py
+
       - name: 커밋 및 푸시
         run: |
           git config user.name "github-actions[bot]"
