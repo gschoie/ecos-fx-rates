@@ -1,27 +1,30 @@
 # -*- coding: utf-8 -*-
 """커버리지 영업이익 컨센서스 추이 — 위클리에 바로 붙여넣는 PNG 생성기.
 
-데이터는 GS-DB2 저장소의 KOSPI200 컨센서스 트래커(kospi_consensus/data/consensus.db,
-매주 금·토 스냅샷)를 그대로 읽는다. 종목별 작은 차트(소형 다중 차트)에
-분기 컨센 2개(예: 4Q26·1Q27 영업이익)의 스냅샷별 추이를 그린다.
+KOSPI200 컨센서스 트래커와 같은 소스(FnGuide 컨센서스)에서 과거 시계열을 직접 받아,
+종목별 작은 차트(소형 다중 차트)에 최근 6개월 영업이익 컨센 추이를 그린다.
+  - FnGuide getCnsTrendChart : 월말 시계열(약 1년)
+  - 네이버 WiseReport cF5002  : 분기 = 주간 13개 시점, 연간 = 월말 13개 시점
+  → 겹치는 구간은 네이버(촘촘한) 값, 그 이전은 FnGuide 월말 값으로 이어 붙인다.
 
-  - 컨센서스_추이_분기.png : 분기 영업이익 컨센 (기본: 최신 스냅샷의 마지막 2개 분기)
-  - 컨센서스_추이_연간.png : 연간 영업이익 컨센 (기본: 올해E·내년E)
+  - 컨센서스_추이_분기.png/.csv : 분기 영업이익 컨센 (기본: 다음 2개 분기, 예: 4Q26·1Q27)
+  - 컨센서스_추이_연간.png/.csv : 연간 영업이익 컨센 (기본: 올해E·내년E)
 
 실행:
-    python consensus/weekly_consensus_chart.py                  # GS-DB2에서 DB 내려받아 둘 다 생성
-    python consensus/weekly_consensus_chart.py --db 경로/consensus.db
+    python consensus/weekly_consensus_chart.py                  # 최근 6개월, 분기·연간 둘 다
+    python consensus/weekly_consensus_chart.py --months 12
     python consensus/weekly_consensus_chart.py --mode quarter --periods 2026.12,2027.03
-    python consensus/weekly_consensus_chart.py --since 2026-08-01
+    python consensus/weekly_consensus_chart.py --since 2026-05-01
 
 종목·순서·섹터는 아래 COMPANIES 만 고치면 된다. (섹터, 표시명, 종목코드)
 """
 
 import argparse
+import json
 import os
-import sqlite3
 import sys
-import tempfile
+import time
+import urllib.parse
 import urllib.request
 from datetime import timedelta
 
@@ -86,11 +89,11 @@ DOWN = "#1F5FBF"
 
 CHANGE_DAYS = 28    # 범례 괄호 안 변화율: 약 1개월 전 스냅샷 대비
 
-DB_URL = ("https://raw.githubusercontent.com/gschoie/GS-DB2/main/"
-          "kospi_consensus/data/consensus.db")
+DEFAULT_MONTHS = 6  # 기본 표시 기간: 최근 6개월
 OUTPUT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output", "consensus")
 FILES = {"quarter": "컨센서스_추이_분기.png", "annual": "컨센서스_추이_연간.png"}
+CSV_FILES = {"quarter": "컨센서스_추이_분기.csv", "annual": "컨센서스_추이_연간.csv"}
 
 
 # =========================================================================
@@ -110,34 +113,99 @@ def setup_font():
 
 
 # =========================================================================
-# 데이터
+# 데이터 — FnGuide(월말 시계열, 1년) + 네이버 WiseReport(분기=주간·연간=월말, 13개 시점)
+#   둘 다 FnGuide 컨센서스(평균)라 값이 같다. 겹치는 날짜는 네이버(주간) 값을 쓰고
+#   그 이전 구간은 FnGuide 월말 값으로 채운다.
 # =========================================================================
-def get_db(path):
-    if path:
-        return path
-    dst = os.path.join(tempfile.gettempdir(), "kospi_consensus.db")
-    print(f"컨센서스 DB 내려받는 중… {DB_URL}")
-    urllib.request.urlretrieve(DB_URL, dst)
-    return dst
+FN_BASE = "https://wcomp.fnguide.com/CompanyInfo"
+NV_BASE = "https://navercomp.wisereport.co.kr"
+UA = "Mozilla/5.0 (compatible; consensus-weekly-chart)"
+FN_OP = 1          # getCnsTrendChart data_typ: 0=매출액, 1=영업이익
+NV_OP = "121500"   # cF5002 acc_cd: 영업이익
 
 
-def load(db_path, kind):
-    codes = [c for _, _, c in COMPANIES]
-    con = sqlite3.connect(db_path)
-    q = ("SELECT snapshot_date, code, period, op_profit FROM consensus_snapshots "
-         f"WHERE kind=? AND code IN ({','.join('?' * len(codes))})")
-    df = pd.read_sql(q, con, params=[kind, *codes])
-    con.close()
-    df["snapshot_date"] = pd.to_datetime(df["snapshot_date"])
-    return df
+def _get_json(url, referer):
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Referer": referer,
+                                               "X-Requested-With": "XMLHttpRequest"})
+    for attempt in range(4):   # 간헐적 connection reset → 재시도
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except Exception:
+            if attempt == 3:
+                raise
+            time.sleep(1.5 * (attempt + 1))
 
 
-def pick_periods(df, kind):
-    """기본 기간 2개. 분기: 최신 스냅샷에 있는 마지막 2개 분기(당분기 다음·그다음),
-    연간: 최신 스냅샷의 앞 2개 연도(올해E·내년E)."""
-    last = df[df.snapshot_date == df.snapshot_date.max()]
-    periods = sorted(last.period.dropna().unique())
-    return periods[-2:] if kind == "quarter" else periods[:2]
+def _empty():
+    return pd.Series(dtype=float, index=pd.DatetimeIndex([]))
+
+
+def fn_periods(code, freq):
+    """FnGuide가 시계열을 주는 결산년월 목록. 예: ['202612', '202703', '202706']."""
+    for consol in ("C", "P"):
+        q = urllib.parse.urlencode({"cmp_cd": code, "consol_typ": consol,
+                                    "freq_typ": freq, "data_typ": FN_OP})
+        try:
+            ds = _get_json(f"{FN_BASE}/getCnsTrendYYMM?{q}",
+                           f"{FN_BASE}/Consensus?gicode=A{code}")["dataset"]
+        except Exception:
+            continue
+        if ds:
+            return [d["YYMM"] for d in ds], consol
+    return [], "C"
+
+
+def fn_series(code, freq, yymm, consol="C"):
+    q = urllib.parse.urlencode({"cmp_cd": code, "consol_typ": consol, "freq_typ": freq,
+                                "select_gsym": yymm, "data_typ": FN_OP})
+    try:
+        rows = _get_json(f"{FN_BASE}/getCnsTrendChart?{q}",
+                         f"{FN_BASE}/Consensus?gicode=A{code}")["dataset"]["data"]
+    except Exception as e:
+        print(f"  FnGuide 실패 {code} {yymm}: {e}")
+        return _empty()
+    pts = {pd.to_datetime(r["TRD_DT"], format="%y/%m/%d"): r["VAL_AVG"]
+           for r in rows if r.get("VAL_AVG") is not None}
+    return pd.Series(pts, dtype=float).sort_index() if pts else _empty()
+
+
+def nv_series(code, freq, yymm):
+    q = urllib.parse.urlencode({"cmp_cd": code, "yymm": yymm, "frq": freq,
+                                "acc_cd": NV_OP, "fingubun": "MAIN", "chartType": "svg"})
+    try:
+        d = _get_json(f"{NV_BASE}/company/ajax/cF5002.aspx?{q}",
+                      f"{NV_BASE}/v2/company/c1050001.aspx?cmp_cd={code}")
+        c = json.loads(d["chart2"])
+    except Exception as e:
+        print(f"  네이버 실패 {code} {yymm}: {e}")
+        return _empty()
+    if "영업이익" not in c.get("item_name", "영업이익"):
+        return _empty()
+    s = pd.Series([v for v in c["avg"]], index=pd.to_datetime(c["categories"], format="%Y/%m/%d"),
+                  dtype=float)
+    return s[~s.index.duplicated(keep="last")].dropna().sort_index()
+
+
+def fetch(kind, periods=None):
+    """long DataFrame(snapshot_date, code, period 'YYYY.MM', op_profit)과 기간 목록."""
+    freq = "Q" if kind == "quarter" else "Y"
+    rows, chosen = [], periods
+    for sec, name, code in COMPANIES:
+        avail, consol = fn_periods(code, freq)
+        if chosen is None and avail:
+            chosen = [f"{p[:4]}.{p[4:]}" for p in avail[:2]]   # 분기: 다음 2개 분기, 연간: 올해·내년
+        for p in chosen or []:
+            yymm = p.replace(".", "")
+            fn = fn_series(code, freq, yymm, consol)
+            nv = nv_series(code, freq, yymm)
+            s = pd.concat([fn[fn.index < nv.index.min()] if len(nv) else fn, nv]).sort_index()
+            s = s[~s.index.duplicated(keep="last")]
+            rows += [(d, code, p, v) for d, v in s.items()]
+            time.sleep(0.15)
+        print(f"  {name}: {len([r for r in rows if r[1] == code])}개 시점")
+    df = pd.DataFrame(rows, columns=["snapshot_date", "code", "period", "op_profit"])
+    return df, chosen or []
 
 
 def period_label(p, kind):
@@ -251,15 +319,26 @@ def draw_panel(ax, title, sec, data, periods, kind, xlim):
     ax.set_ylim(ymin, hi + pad)
 
 
+def clip_since(df, since):
+    """since 이후만 남기되, 그 직전 값을 since 시점에 이어 붙여 선이 왼쪽 끝부터 시작하게 한다."""
+    keep = [df[df.snapshot_date >= since]]
+    before = df[df.snapshot_date < since].sort_values("snapshot_date")
+    if len(before):
+        carry = before.groupby(["code", "period"]).tail(1).copy()
+        carry["snapshot_date"] = since
+        keep.append(carry)
+    out = pd.concat(keep).sort_values("snapshot_date")
+    return out.drop_duplicates(["snapshot_date", "code", "period"], keep="first")
+
+
 def render(df, kind, periods, since, path, asof):
-    if since:
-        df = df[df.snapshot_date >= pd.Timestamp(since)]
     df = df[df.period.isin(periods)]
+    df = clip_since(df, since)
     if df.empty:
         print(f"⚠️ {kind}: {periods} 데이터가 없습니다 — 건너뜀")
         return
-    x0, x1 = df.snapshot_date.min(), df.snapshot_date.max()
-    xpad = max(timedelta(days=1), (x1 - x0) * 0.03)
+    x0, x1 = since, asof
+    xpad = (x1 - x0) * 0.02
     xlim = (x0 - xpad, x1 + xpad)
 
     rows = layout_rows()
@@ -296,12 +375,11 @@ def render(df, kind, periods, since, path, asof):
     labels = " · ".join(period_label(p, kind) for p in periods)
     what = "분기" if kind == "quarter" else "연간"
     fig.text(0.1 / fig_w, 0.30 / fig_h,
-             f"주: {what} 영업이익 컨센서스({labels}) 주간 스냅샷 추이. "
-             f"OP=영업이익, 범례 숫자는 최신 컨센(억원), 오른쪽 %는 약 1개월 전 스냅샷 대비 변화율"
-             f"(수집 기간이 그보다 짧으면 첫 스냅샷 대비)",
+             f"주: {what} 영업이익 컨센서스({labels}) 평균 추이, 최근 {round((asof - since).days / 30.4)}개월. "
+             f"OP=영업이익, 범례 숫자는 최신 컨센(억원), 오른쪽 %는 1개월 전 대비 변화율",
              fontsize=6, color=MUTED, ha="left", va="center")
     fig.text(0.1 / fig_w, 0.13 / fig_h,
-             f"자료: 네이버증권(WiseReport) 컨센서스, KOSPI200 컨센서스 트래커 · 기준일 {asof:%Y-%m-%d}",
+             f"자료: FnGuide, 네이버증권(WiseReport) · 기준일 {asof:%Y-%m-%d}",
              fontsize=6, color=MUTED, ha="left", va="center")
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -313,26 +391,30 @@ def render(df, kind, periods, since, path, asof):
 # =========================================================================
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--db", help="consensus.db 경로 (없으면 GS-DB2 main에서 내려받음)")
     ap.add_argument("--mode", choices=["quarter", "annual", "both"], default="both")
     ap.add_argument("--periods", help="기간 직접 지정(쉼표 2개), 예: 2026.12,2027.03 "
                                       "(--mode quarter/annual 하나일 때)")
-    ap.add_argument("--since", help="이 날짜 이후 스냅샷만 (YYYY-MM-DD)")
+    ap.add_argument("--months", type=int, default=DEFAULT_MONTHS, help="표시 기간(개월, 기본 6)")
+    ap.add_argument("--since", help="시작일 직접 지정 (YYYY-MM-DD, --months 무시)")
     ap.add_argument("--out", default=OUTPUT_DIR, help="출력 폴더")
     args = ap.parse_args()
 
     setup_font()
-    db = get_db(args.db)
     modes = ["quarter", "annual"] if args.mode == "both" else [args.mode]
     for kind in modes:
-        df = load(db, kind)
+        print(f"[{kind}] 컨센서스 시계열 수집")
+        periods = args.periods.split(",") if args.periods and args.mode != "both" else None
+        df, periods = fetch(kind, periods)
         if df.empty:
             print(f"⚠️ {kind}: 데이터 없음")
             continue
-        periods = (args.periods.split(",") if args.periods and args.mode != "both"
-                   else pick_periods(df, kind))
         asof = df.snapshot_date.max()
-        render(df, kind, periods, args.since, os.path.join(args.out, FILES[kind]), asof)
+        since = (pd.Timestamp(args.since) if args.since
+                 else asof - pd.DateOffset(months=args.months))
+        os.makedirs(args.out, exist_ok=True)
+        df.sort_values(["code", "period", "snapshot_date"]).to_csv(
+            os.path.join(args.out, CSV_FILES[kind]), index=False, encoding="utf-8-sig")
+        render(df, kind, periods, since, os.path.join(args.out, FILES[kind]), asof)
 
 
 if __name__ == "__main__":

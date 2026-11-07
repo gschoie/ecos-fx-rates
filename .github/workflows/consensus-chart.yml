@@ -1,7 +1,7 @@
 name: 커버리지 컨센서스 추이 이미지
 
 # 수동 실행 전용: Actions → "커버리지 컨센서스 추이 이미지" → Run workflow
-# GS-DB2 KOSPI200 컨센 트래커 DB → output/consensus/*.png 갱신 (위클리용)
+# FnGuide·네이버 컨센서스 시계열(최근 6개월) → output/consensus/*.png 갱신 (위클리용)
 on:
   workflow_dispatch:
 
@@ -34,7 +34,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install matplotlib pandas
 
-      - name: 이미지 생성 (컨센 DB → png)
+      - name: 이미지 생성 (컨센 시계열 → png)
         run: python consensus/weekly_consensus_chart.py
 
       - name: 커밋 및 푸시

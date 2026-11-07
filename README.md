@@ -48,15 +48,16 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 
 ## 커버리지 컨센서스 추이 (이미지)
 
-위클리용 PNG. 조선·조기·방산·건기 16개 종목의 영업이익 컨센서스가 주간 스냅샷별로 어떻게 움직였는지
-종목별 작은 차트로 그린다. 데이터는 GS-DB2 `kospi_consensus/data/consensus.db`(KOSPI200 컨센 트래커, 매주 금·토 스냅샷).
+위클리용 PNG. 조선·조기·방산·건기 16종목의 **최근 6개월** 영업이익 컨센서스(평균) 추이를
+종목별 작은 차트로 그린다. KOSPI200 컨센 트래커와 같은 FnGuide 컨센서스를 과거 시계열로 직접 받는다.
 
-- **출력**: `output/consensus/컨센서스_추이_분기.png`(최신 스냅샷의 마지막 2개 분기, 예: 4Q26·1Q27) +
-  `컨센서스_추이_연간.png`(올해E·내년E)
+- **소스**: FnGuide `getCnsTrendChart`(월말, 약 1년) + 네이버 WiseReport `cF5002`(분기 = 주간 13개 시점,
+  연간 = 월말 13개 시점). 겹치는 구간은 네이버 값, 그 이전은 FnGuide 월말 값으로 잇는다
+- **출력**: `output/consensus/컨센서스_추이_분기.png/.csv`(다음 2개 분기, 예: 4Q26·1Q27) +
+  `컨센서스_추이_연간.png/.csv`(올해E·내년E)
 - **종목·순서·섹터**: `consensus/weekly_consensus_chart.py` 상단 `COMPANIES` (섹터, 표시명, 종목코드)
-- **옵션**: `--periods 2026.12,2027.03`(기간 직접 지정, `--mode quarter`와 같이), `--since 2026-08-01`, `--db 로컬경로`
-- **실행**: Actions → "커버리지 컨센서스 추이 이미지" (`.github/workflows/consensus-chart.yml`). 트래커가 금·토에 갱신되므로 그 뒤에 돌린다
-- 분기 fwd 컨센(4Q26·1Q27)은 트래커가 2026-10-15부터 수집해 그 전 구간은 비어 있다. 주가 쌓일수록 선이 길어진다
+- **옵션**: `--months 12`(기간), `--since 2026-05-01`, `--mode quarter --periods 2026.12,2027.03`
+- **실행**: Actions → "커버리지 컨센서스 추이 이미지" (`.github/workflows/consensus-chart.yml`)
 
 ## 내력
 
