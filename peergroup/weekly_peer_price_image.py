@@ -57,7 +57,7 @@ SECTIONS = [
                          ("대한조선", "439260.KS"), ("HJ중공업", "097230.KS")]),
             ("싱가포르", [("Seatrium", "5E2.SI")]),
             ("중국조선", [("CSSC", "600150.SS"), ("CSSC O&ME", "0317.HK"),
-                         ("Yangzijiang", "BS6.SI"), ("대련조선", "601989.SS")]),
+                         ("Yangzijiang", "BS6.SI")]),
             ("일본조선", [("Mitsubishi HI", "7011.T"), ("Mitsui E&S", "7003.T"),
                          ("Kawasaki HI", "7012.T"), ("Sumitomo HI", "6302.T"),
                          ("IHI", "7013.T"), ("Naikai Zosen", "7018.T")]),
@@ -113,7 +113,7 @@ SECTIONS = [
                       ("Nordic American", "NAT"), ("CMB.TECH", "CMBT")]),
             ("벌크", [("Star Bulk", "SBLK"), ("팬오션", "028670.KS"),
                       ("대한해운", "005880.KS")]),
-            ("LNG", [("Flex LNG", "FLNG"), ("Golar LNG", "GLNG"), ("CoolCo", "CLCO")]),
+            ("LNG", [("Flex LNG", "FLNG"), ("Golar LNG", "GLNG")]),
             ("LPG", [("BW LPG", "BWLP"), ("Dorian LPG", "LPG"), ("Exmar", "EXM.BR")]),
             ("기타", [("SFL Corp", "SFL"), ("KNOT Offshore", "KNOP"),
                       ("Clarkson", "CKN.L")]),
@@ -157,6 +157,14 @@ DPI = 220
 OUTPUT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output", "peer_price")
 PAGE_FILE = "글로벌_피어그룹_주가흐름.png"
+
+# 2페이지 분할본: (파일명, 제목 꼬리, {섹션 제목: 단(0=왼쪽, 1=오른쪽)})
+SPLIT_PAGES = [
+    ("글로벌_피어그룹_주가흐름_p1_조선.png", "조선 · 기자재",
+     {"지수 / 원자재": 0, "조선사": 0, "엔진 / 기자재": 1}),
+    ("글로벌_피어그룹_주가흐름_p2_오일해운.png", "오일 · 해운",
+     {"오일 / 해양": 0, "해운": 1}),
+]
 
 
 # =========================================================================
@@ -242,6 +250,10 @@ def fetch_market_caps_usd_m(tickers):
             fi = yf.Ticker(t).fast_info
             mc = fi.get("marketCap") or fi.get("market_cap")
             cur = fi.get("currency") or "USD"
+            if not mc:  # 싱가포르 등 일부 거래소는 fast_info에 시총이 없음 → info 폴백
+                info = yf.Ticker(t).info
+                mc = info.get("marketCap")
+                cur = info.get("currency") or cur
             if mc:
                 out[t] = mc * to_usd(cur) / 1e6
         except Exception as e:
@@ -404,12 +416,16 @@ def column_scales(all_rows):
     return sc
 
 
-def render_page(sections_rows, caps, scales, asof, path):
+def render_page(sections_rows, caps, scales, asof, path, layout=None, subtitle=""):
+    """layout: {섹션 제목: 단} — 주면 그 섹션만 그 단에, 없으면 SECTIONS의 column 사용."""
     W_units = table_width_units()
     gap_units = 1.6
     cols = {0: [], 1: []}
     for sec, rows in sections_rows:
-        cols[sec.get("column", 0)].append((sec, rows))
+        if layout is None:
+            cols[sec.get("column", 0)].append((sec, rows))
+        elif sec["title"] in layout:
+            cols[layout[sec["title"]]].append((sec, rows))
     col_h = {c: sum(section_height_units(s) for s, _ in lst) + gap_units * max(0, len(lst) - 1)
              for c, lst in cols.items()}
 
@@ -425,7 +441,7 @@ def render_page(sections_rows, caps, scales, asof, path):
                         (fig_w - 2 * margin) / fig_w, (title_h - 0.08) / fig_h])
     tax.axis("off")
     tax.add_patch(Rectangle((0, 0), 1, 1, color=BRAND, transform=tax.transAxes))
-    tax.text(0.012, 0.5, TITLE_TEXT, color="white", fontsize=12.5, fontweight="bold",
+    tax.text(0.012, 0.5, TITLE_TEXT + (f"  |  {subtitle}" if subtitle else ""), color="white", fontsize=12.5, fontweight="bold",
              va="center", transform=tax.transAxes)
     tax.text(0.99, 0.5, f"기준일 {asof:%Y.%m.%d}", color="white", fontsize=8.5,
              va="center", ha="right", transform=tax.transAxes)
@@ -486,6 +502,10 @@ def main():
     page = os.path.join(args.out, PAGE_FILE)
     render_page(sections_rows, caps, scales, asof, page)
     print(f"🖼  {page}")
+    for fn, sub, layout in SPLIT_PAGES:
+        path = os.path.join(args.out, fn)
+        render_page(sections_rows, caps, scales, asof, path, layout=layout, subtitle=sub)
+        print(f"🖼  {path}")
     for i, (sec, rows) in enumerate(sections_rows, 1):
         fn = f"{i:02d}_{sec['title'].replace(' / ', '_').replace('/', '_').replace(' ', '')}.png"
         render_single(sec, rows, caps, scales, os.path.join(args.out, fn))
