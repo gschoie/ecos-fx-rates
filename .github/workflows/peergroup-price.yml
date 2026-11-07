@@ -1,12 +1,18 @@
 name: 피어그룹 주가 엑셀
 
-# 수동 실행 전용: Actions → "피어그룹 주가 엑셀" → Run workflow
-# → output/글로벌_주가_변동률_모니터링_최종.xlsx 갱신 (저장소에서 바로 다운로드)
+# 야후 수집 → ① 피어그룹 주가 엑셀 ② 위클리용 주가흐름표 PNG/SVG ③ 조선주 INDEX 차트 PNG/SVG
+# 를 한 번에 만들어 output/ 에 커밋한다(저장소·대시보드에서 바로 내려받기).
+#   - 매일 07:10 KST(22:10 UTC) 자동 — 미국 장 마감(겨울 06:00 KST) 뒤, 출근 전. 무료 러너 크론은
+#     몇십 분~몇 시간 밀릴 수 있다(일간물이라 감수).
+#   - 수동: Actions → Run workflow, 또는 대시보드 갤러리 페이지의 '🔄 지금 갱신' 버튼
+#     (GAS dispatch_proxy 의 `peer` 키 = 이 파일).
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "10 22 * * *"   # 07:10 KST 매일
 
 permissions:
-  contents: write   # 갱신된 xlsx 커밋·푸시
+  contents: write   # 갱신된 xlsx·png·svg 커밋·푸시
 
 concurrency:
   group: peergroup-price
@@ -24,23 +30,35 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: 한글 폰트 설치 (이미지용 나눔고딕)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q fonts-nanum
+          rm -rf ~/.cache/matplotlib
+
       - name: 패키지 설치
         run: |
           python -m pip install --upgrade pip
           pip install -r peergroup/requirements.txt
 
-      - name: 피어그룹 엑셀 생성 (야후 수집 → xlsx)
+      - name: ① 피어그룹 엑셀 생성 (야후 수집 → xlsx)
         run: python peergroup/weekly_peergroup_price.py
+
+      - name: ② 피어그룹 주가흐름표 이미지 (png/svg)
+        run: python peergroup/weekly_peer_price_image.py
+
+      - name: ③ 조선주 INDEX 차트 3종 (png/svg)
+        run: python peergroup/weekly_peer_index_image.py
 
       - name: 커밋 및 푸시
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "output/글로벌_주가_변동률_모니터링_최종.xlsx"
+          git add "output/글로벌_주가_변동률_모니터링_최종.xlsx" output/peer_price
           if git diff --cached --quiet; then
             echo "변경 없음 — 커밋 생략"
           else
-            git commit -m "chore: 피어그룹 주가 엑셀 갱신 $(date -u +%Y-%m-%d)"
+            git commit -m "chore: 피어그룹 엑셀·이미지 갱신 $(TZ=Asia/Seoul date +%Y-%m-%d\ %H:%M)"
             for i in 1 2 3; do
               git push origin HEAD:main && { echo "push 성공"; break; }
               git pull --rebase --autostash origin main || exit 1
