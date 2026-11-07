@@ -44,7 +44,7 @@ SECTIONS = [
         "title": "지수 / 원자재", "column": 0, "market_cap": False,
         "groups": [
             ("유가", [("WTI", "CL=F"), ("Brent", "BZ=F")]),
-            ("가스", [("Henry Hub", "NG=F")]),
+            ("천연가스", [("Henry Hub(美)", "NG=F"), ("TTF(歐)", "TTF=F"), ("JKM(亞 LNG)", "JKM=F")]),
             ("운임", [("BDRY(BDI ETF)", "BDRY")]),
             ("환율", [("원/달러", "KRW=X")]),
         ],
@@ -429,23 +429,14 @@ def render_page(sections_rows, caps, scales, asof, path, layout=None, subtitle="
     col_h = {c: sum(section_height_units(s) for s, _ in lst) + gap_units * max(0, len(lst) - 1)
              for c, lst in cols.items()}
 
-    margin, title_h, foot_h, mid_gap = 0.25, 0.42, 0.25, 0.3
+    margin, title_h, foot_h, mid_gap = 0.25, 0.0, 0.25, 0.3
     tw = W_units * ROW_IN
     fig_w = 2 * margin + 2 * tw + mid_gap
     fig_h = margin + title_h + max(col_h.values()) * ROW_IN + foot_h + margin
     fig = plt.figure(figsize=(fig_w, fig_h), dpi=DPI)
     fig.patch.set_facecolor("white")
 
-    # 페이지 제목 바
-    tax = fig.add_axes([margin / fig_w, 1 - (margin + title_h) / fig_h,
-                        (fig_w - 2 * margin) / fig_w, (title_h - 0.08) / fig_h])
-    tax.axis("off")
-    tax.add_patch(Rectangle((0, 0), 1, 1, color=BRAND, transform=tax.transAxes))
-    tax.text(0.012, 0.5, TITLE_TEXT + (f"  |  {subtitle}" if subtitle else ""), color="white", fontsize=12.5, fontweight="bold",
-             va="center", transform=tax.transAxes)
-    tax.text(0.99, 0.5, f"기준일 {asof:%Y.%m.%d}", color="white", fontsize=8.5,
-             va="center", ha="right", transform=tax.transAxes)
-
+    # 제목 바 없음(위클리에 바로 붙이는 용도) — 기준일은 하단 각주에
     for c, lst in cols.items():
         x_in = margin + c * (tw + mid_gap)
         y_in = margin + title_h
@@ -456,7 +447,7 @@ def render_page(sections_rows, caps, scales, asof, path, layout=None, subtitle="
             y_in += h_in + gap_units * ROW_IN
 
     fig.text(margin / fig_w, (margin * 0.6) / fig_h,
-             "자료: Yahoo Finance  |  등락률은 현지통화 종가 기준, 거래일 오프셋 1W=5·1M=21·3M=63·1Y=252, "
+             f"기준일 {asof:%Y.%m.%d}  |  자료: Yahoo Finance  |  등락률은 현지통화 종가 기준, 거래일 오프셋 1W=5·1M=21·3M=63·1Y=252, "
              "YTD=전년 마지막 종가 대비  |  시총은 USD 백만달러  |  "
              f"스파크라인: 최근 {SPARK_DAYS}거래일 (점선=기간 시작가)",
              fontsize=6.3, color=MUTED, va="bottom")
