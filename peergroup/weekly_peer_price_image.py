@@ -135,9 +135,8 @@ COLUMNS = [
     ("spark", "주가 ({})", 6.6),
     ("YTD", "YTD", 3.6),
     ("1Y", "1Y", 3.6),
-    ("high", "52주\n고점대비", 3.6),
 ]
-BAR_KEYS = ["1W", "1M", "3M", "YTD", "1Y", "high"]
+BAR_KEYS = ["1W", "1M", "3M", "YTD", "1Y"]
 
 # 서식
 TITLE_TEXT = "글로벌 피어그룹 주가 흐름"
@@ -283,10 +282,9 @@ def compute_metrics(s):
 
     prev_year = s.loc[s.index < datetime(last_d.year, 1, 1)]
     ytd = last / float(prev_year.iloc[-1]) - 1 if not prev_year.empty else np.nan
-    last_1y = s.loc[s.index >= last_d - timedelta(days=365)]
     return {
         "1W": ret_since(7), "1M": ret_since(30), "3M": ret_since(91),
-        "YTD": ytd, "1Y": ret_since(365), "high": last / float(last_1y.max()) - 1,
+        "YTD": ytd, "1Y": ret_since(365),
         "spark": s.loc[s.index >= last_d - timedelta(days=SPARK_DAYS)],
         "last_date": last_d,
     }
@@ -371,8 +369,8 @@ def draw_section(ax, section, rows, caps, col_scale):
             if v is None or not np.isfinite(v):
                 continue
             x, w = xpos[k]
-            mid = x + w / 2 if k != "high" else x + w - 0.25
-            half = (w / 2 - 0.2) if k != "high" else (w - 0.5)
+            mid = x + w / 2
+            half = w / 2 - 0.2
             frac = max(-1.0, min(1.0, v / col_scale[k])) if col_scale[k] > 0 else 0
             ax.add_patch(Rectangle((mid, yc - 0.32), frac * half, 0.64,
                                    color=UP_BAR if v >= 0 else DOWN_BAR, lw=0))
