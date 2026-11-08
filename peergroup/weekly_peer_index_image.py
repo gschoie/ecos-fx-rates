@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-"""조선주 상대 INDEX 차트 3종 — 위클리/PPT에 바로 붙이는 PNG+SVG.
+"""조선주 상대 INDEX 차트 4종 — 위클리/PPT에 바로 붙이는 PNG+SVG.
 
   ① 한국 주식시장 vs 조선주 : KOSPI vs 한국 조선주 지수
   ② 한국 조선 7사 Performance : 종목별 선
   ③ 한/중/일/싱 조선주 비교  : 국가별 지수
+  ④ 조선 5사 vs 엔진 vs 조선기자재 : 국내 밸류체인 3단 지수(11/8 사용자 요청 — 2×2 오른쪽 아래 칸,
+     각주는 그림 맨 아래로)
 
 지수는 12주(60거래일) 전 = 100. 국가별 지수는 **시총 가중**(기준일 USD 시총을 고정 가중치로 두고
 종목 수익률을 가중 평균 — 통화가 섞인 중국(CNY·HKD·SGD)도 환율 없이 비교 가능). 가격은
@@ -13,7 +15,7 @@ weekly_peer_price_image 가 받는 야후 일별 종가를 그대로 쓴다.
     python peergroup/weekly_peer_index_image.py          # 야후 수집
     python peergroup/weekly_peer_index_image.py --demo   # 가짜 데이터로 레이아웃만
 
-구성은 GROUPS / KR_FIVE 만 고치면 된다(표시명, 야후 티커).
+구성은 GROUPS / KR_SHIP / CHAIN 만 고치면 된다(표시명, 야후 티커).
 """
 
 import argparse
@@ -43,6 +45,20 @@ GROUPS = {   # ③ 국가별 지수(시총 가중)
     "싱가포르": [("Seatrium", "5E2.SI")],
 }
 KOSPI = ("KOSPI", "^KS11")
+# ④ 국내 조선 밸류체인 3단(각각 시총 가중). 묶음은 GS-DB2 coverage_flow 의 위클리 묶음(조선·조선기자재)과 같은 종목
+# 집합이되 엔진 3사(한화엔진·HD현대마린엔진·STX엔진)를 따로 뗐다. HD현대마린솔루션(AM 서비스)은 어느 단에도 안 넣는다.
+CHAIN = {
+    "조선 5사": [("HD현대중공업", "329180.KS"), ("HD한국조선해양", "009540.KS"), ("삼성중공업", "010140.KS"),
+              ("한화오션", "042660.KS"), ("대한조선", "439260.KS")],
+    "엔진": [("한화엔진", "082740.KS"), ("HD현대마린엔진", "071970.KS"), ("STX엔진", "077970.KS")],
+    "조선기자재": [("한국카본", "017960.KS"), ("동성화인텍", "033500.KQ"), ("세진중공업", "075580.KS"),
+               ("현대힘스", "460930.KQ"), ("성광벤드", "014620.KQ"), ("태광", "023160.KQ"), ("하이록코리아", "013030.KQ"),
+               ("오리엔탈정공", "014940.KQ"), ("케이에스피", "073010.KQ"), ("삼영엠텍", "054540.KQ"),
+               ("대양전기공업", "108380.KQ"), ("한라IMS", "092460.KQ"), ("인화정공", "101930.KQ"),
+               ("범한퓨얼셀", "382900.KQ"), ("비엠티", "086670.KQ"), ("케이프", "064820.KQ"), ("일승", "333430.KQ"),
+               ("엔케이", "085310.KS"), ("대창솔루션", "096350.KQ"), ("에스엔시스", "0008Z0.KQ")],
+}
+CHAIN_COLORS = {"조선 5사": "#A68A64", "엔진": "#1F5FBF", "조선기자재": "#2CA02C"}
 # 야후가 시총을 안 주는 종목(SGX 상장 Yangzijiang — fast_info·info 모두 None, 11/7 실측)의 상장주식수 폴백.
 # 시총 = 주식수 × 종가 × 환율. 숫자가 바뀌면 여기만 고친다(연차보고서 기준 보통주).
 SHARES_FALLBACK = {"BS6.SI": (3.95e9, "SGD")}   # Yangzijiang Shipbuilding ≈ 39.5억주
@@ -53,16 +69,17 @@ GROUP_COLORS = {"한국": "#A68A64", "중국": "#D62728", "일본": "#1F5FBF", "
 LINE_COLORS = ["#1F5FBF", "#A68A64", "#2CA02C", "#D62728", "#111111", "#8C6BB1", "#FF9F1C"]
 TEXT, MUTED, GRID = base.TEXT, base.MUTED, base.GRID
 
-W_IN, H_IN = 6.4, 4.8           # 차트 1장 크기(inch) — 3장 묶음은 2×2 격자
+W_IN, H_IN = 6.4, 4.8           # 차트 1장 크기(inch) — 4장 묶음은 2×2 격자 + 아래 각주 띠
+NOTE_IN = 0.95                  # 묶음 아래 각주 띠 높이(inch)
 FS_TITLE, FS_AX, FS_LG = 16, 12.5, 12
 LW = 2.6
-OUT_ALL = "조선주_INDEX_3종.png"
-OUT_ONE = ["IDX1_한국시장_vs_조선주", "IDX2_한국조선_Performance", "IDX3_한중일싱_조선주"]
+OUT_ALL = "조선주_INDEX_4종.png"
+OUT_ONE = ["IDX1_한국시장_vs_조선주", "IDX2_한국조선_Performance", "IDX3_한중일싱_조선주", "IDX4_조선_엔진_기자재"]
 
 
 def all_tickers():
     out = [KOSPI[1]]
-    for items in GROUPS.values():
+    for items in list(GROUPS.values()) + list(CHAIN.values()):
         out += [t for _, t in items]
     return list(dict.fromkeys(out))
 
@@ -156,25 +173,39 @@ def chart3(ax, df, caps):
     style(ax, "한/중/일/싱 조선주 비교 (시총가중)"); xticks(ax, df.index); legend(ax)
 
 
+def chart4(ax, df, caps):
+    x = range(len(df))
+    for g, items in CHAIN.items():
+        s, cols = cap_weighted(df, items, caps)
+        if s is not None:
+            ax.plot(x, s.values, color=CHAIN_COLORS[g], lw=LW, label=f"{g} ({len(cols)})")
+    style(ax, "조선 5사 vs. 엔진 vs. 조선기자재 (시총가중)"); xticks(ax, df.index); legend(ax, ncol=3)
+
+
+def footnote(asof):
+    return (f"기준일 {asof:%Y.%m.%d}  ·  자료: Yahoo Finance  ·  "
+            f"INDEX = {WEEKS}주({DAYS}거래일) 전 종가 = 100, KOSPI 거래일 기준(해외 휴장일은 직전값)\n"
+            "국가 지수·밸류체인 지수 = 기준일 USD 시총 가중(고정 가중치). 한국 조선주 = 조선 4사 + 대한조선 + 한화엔진 + HD현대마린엔진.\n"
+            f"④ 조선 5사 = 조선 4사 + 대한조선 / 엔진 = {', '.join(n for n, _ in CHAIN['엔진'])} / "
+            f"조선기자재 = 국내 {len(CHAIN['조선기자재'])}사(한국카본·동성화인텍·세진중공업·현대힘스 등, 괄호는 지수에 든 종목 수)")
+
+
 def render(df, caps, out_dir, asof):
-    draws = [lambda ax: chart1(ax, df, caps), lambda ax: chart2(ax, df), lambda ax: chart3(ax, df, caps)]
+    draws = [lambda ax: chart1(ax, df, caps), lambda ax: chart2(ax, df), lambda ax: chart3(ax, df, caps),
+             lambda ax: chart4(ax, df, caps)]
     # 낱장
     for fn, draw in zip(OUT_ONE, draws):
         fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=base.DPI)
         draw(ax)
         fig.tight_layout()
         base.save_fig(fig, os.path.join(out_dir, fn + ".png"))
-    # 3장 묶음(2×2, 오른쪽 아래 비움 — 리포트 배치 그대로)
-    fig, axes = plt.subplots(2, 2, figsize=(W_IN * 2, H_IN * 2), dpi=base.DPI)
-    for ax, draw in zip([axes[0][0], axes[0][1], axes[1][0]], draws):
+    # 4장 묶음(2×2) + 각주는 맨 아래 띠에(11/8 사용자: "주석은 밑으로 빼고 오른쪽 아래에 차트")
+    fig_h = H_IN * 2 + NOTE_IN
+    fig, axes = plt.subplots(2, 2, figsize=(W_IN * 2, fig_h), dpi=base.DPI)
+    for ax, draw in zip(axes.flat, draws):
         draw(ax)
-    axes[1][1].axis("off")
-    axes[1][1].text(0.02, 0.9, f"기준일 {asof:%Y.%m.%d}\n자료: Yahoo Finance\n"
-                    f"INDEX = {WEEKS}주({DAYS}거래일) 전 종가 = 100, KOSPI 거래일 기준\n"
-                    "국가 지수 = 기준일 USD 시총 가중(고정 가중치)\n"
-                    "한국 조선주 = 조선 4사 + 대한조선 + 한화엔진 + HD현대마린엔진",
-                    fontsize=FS_AX, color=MUTED, va="top", linespacing=1.6)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, NOTE_IN / fig_h, 1, 1))
+    fig.text(0.015, 0.012, footnote(asof), fontsize=FS_AX - 1.5, color=MUTED, va="bottom", ha="left", linespacing=1.7)
     base.save_fig(fig, os.path.join(out_dir, OUT_ALL))
 
 
@@ -208,7 +239,7 @@ def main():
         print(f"⚠️ 데이터 없는 종목: {', '.join(missing)}")
     os.makedirs(a.out, exist_ok=True)
     render(df, caps, a.out, df.index[-1])
-    print(f"🖼  {os.path.join(a.out, OUT_ALL)} (+ 낱장 3)")
+    print(f"🖼  {os.path.join(a.out, OUT_ALL)} (+ 낱장 {len(OUT_ONE)})")
     return 0
 
 

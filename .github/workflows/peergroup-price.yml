@@ -53,7 +53,7 @@ jobs:
       - name: ②-3 건설기계 주가흐름표 (output/peer_price_construction)
         run: python peergroup/weekly_peer_price_image.py --universe construction
 
-      - name: ③ 조선주 INDEX 차트 3종 (png/svg)
+      - name: ③ 조선주 INDEX 차트 4종 (png/svg)
         run: python peergroup/weekly_peer_index_image.py
 
       - name: 커밋 및 푸시

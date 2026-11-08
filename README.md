@@ -49,9 +49,10 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 - **기간 기준**: 거래일 오프셋 `TRADING_DAYS`(1W=5·1M=21·3M=63·1Y=252), 스파크라인 `SPARK_DAYS`(63=3M, 126=6M)
 - **실행**: "피어그룹 주가 엑셀" 워크플로에 통합(매일 07:10 KST + 수동). 대시보드 갤러리 페이지의 🔄 지금 갱신 버튼도 같은 워크플로를 쏜다
 - **레이아웃 확인만**: `python peergroup/weekly_peer_price_image.py --demo` (가짜 데이터)
-- **조선주 INDEX 차트 3종**(`peergroup/weekly_peer_index_image.py`, 같은 워크플로): ① KOSPI vs 한국 조선주 ② 한국 조선 7사
-  Performance ③ 한/중/일/싱 조선주 비교 — 12주 전=100, 국가 지수는 기준일 USD 시총 가중. 출력 `output/peer_price/조선주_INDEX_3종.png`
-  (2×2 묶음) + 낱장 `IDX1_…`·`IDX2_…`·`IDX3_…` (PNG+SVG). 구성은 스크립트 상단 `KR_SHIP`·`GROUPS`.
+- **조선주 INDEX 차트 4종**(`peergroup/weekly_peer_index_image.py`, 같은 워크플로): ① KOSPI vs 한국 조선주 ② 한국 조선 7사
+  Performance ③ 한/중/일/싱 조선주 비교 ④ 조선 5사 vs 엔진 vs 조선기자재 — 12주 전=100, 국가·밸류체인 지수는 기준일 USD 시총 가중.
+  출력 `output/peer_price/조선주_INDEX_4종.png`(2×2 묶음, 각주는 맨 아래) + 낱장 `IDX1~4_*.png`(각각 .svg 동반)
+  구성은 스크립트 상단 `KR_SHIP`·`GROUPS`·`CHAIN`.
 
 ## 커버리지 컨센서스 추이 (이미지)
 
