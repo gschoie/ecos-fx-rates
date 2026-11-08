@@ -154,8 +154,8 @@ DEFENSE_SECTIONS = [
             ("중동", [("Elbit Systems(이스라엘)", "ESLT"), ("Aselsan(튀르키예)", "ASELS.IS")]),
             ("인도", [("HAL(Hindustan Aero)", "HAL.NS"), ("Bharat Electronics", "BEL.NS")]),
             ("일본", [("Mitsubishi HI", "7011.T"), ("Kawasaki HI", "7012.T"), ("IHI", "7013.T")]),
-            ("중국", [("AVIC Shenyang", "600760.SS"), ("AVIC Chengdu", "302132.SZ")]),
-            ("남미", [("Embraer", "ERJ")]),
+            ("중국", [("AVIC Shenyang", "600760.SS"), ("AVIC Xi'an Aircraft", "000768.SZ")]),
+            ("남미", [("Embraer", "EMBR3.SA")]),
         ],
     },
     {
@@ -194,8 +194,7 @@ CONSTRUCTION_SECTIONS = [
     {
         "title": "건설기계 OEM", "column": 0, "file": "02_건설기계OEM",
         "groups": [
-            ("한국", [("HD현대건설기계", "267270.KS"), ("HD현대인프라코어", "042670.KS"),
-                     ("두산밥캣", "241560.KS")]),
+            ("한국", [("HD건설기계", "267270.KS"), ("두산밥캣", "241560.KS")]),
             ("미국/유럽", [("Caterpillar", "CAT"), ("Volvo", "VOLV-B.ST"), ("Terex", "TEX"),
                           ("Oshkosh(JLG)", "OSK"), ("Manitowoc", "MTW"),
                           ("Wacker Neuson", "WAC.DE"), ("Manitou", "MTU.PA")]),
@@ -213,7 +212,7 @@ CONSTRUCTION_SECTIONS = [
             ("농기계", [("Deere", "DE"), ("CNH", "CNH"), ("AGCO", "AGCO"), ("대동", "000490.KS")]),
             ("광산장비", [("Sandvik", "SAND.ST"), ("Epiroc", "EPI-A.ST"), ("Metso", "METSO.HE"),
                          ("Weir", "WEIR.L")]),
-            ("렌탈", [("United Rentals", "URI"), ("Ashtead(Sunbelt)", "AHT.L"), ("Herc", "HRI")]),
+            ("렌탈", [("United Rentals", "URI"), ("Sunbelt Rentals(舊Ashtead)", "SUNB"), ("Herc", "HRI")]),
             ("CAT 딜러", [("Finning", "FTT.TO"), ("Toromont", "TIH.TO")]),
         ],
     },
@@ -639,7 +638,9 @@ def main():
         caps = fetch_market_caps_usd_m([t for t in tickers if t in prices])
 
     metrics = {t: compute_metrics(s) for t, s in prices.items()}
-    asof = max(m["last_date"] for m in metrics.values())
+    stock_t = {t for sec in SECTIONS if sec.get("market_cap", True) for _, items in sec["groups"] for _, t in items}
+    asof = max((m["last_date"] for t, m in metrics.items() if t in stock_t), default=None) \
+        or max(m["last_date"] for m in metrics.values())   # 선물·환율은 일요일 봉이 있어 주식 기준으로
 
     sections_rows = [(sec, section_rows(sec, metrics)) for sec in SECTIONS]
     # 막대 스케일은 원자재(지수)를 빼고 주식만으로
