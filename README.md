@@ -41,7 +41,11 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 1W/1M/3M/YTD/1Y 등락률 막대 + 최근 3개월 주가 스파크라인을 그린다.
 
 - **출력**: `output/peer_price/글로벌_피어그룹_주가흐름.png`(전체 1페이지) + 2페이지 분할본(`_p1_조선`·`_p2_오일해운`) + 섹션별(`01_…`). 전부 **PNG와 SVG** 두 벌 — 엑셀·PPT에는 SVG를 `삽입 → 그림 → 이 디바이스`로 넣으면 확대해도 선명하다(복사·붙여넣기는 비트맵이 되어 흐려짐)
-- **종목 수정**: `peergroup/weekly_peer_price_image.py` 상단 `SECTIONS` (그룹 라벨·표시명·야후 티커)
+- **종목 수정**: `peergroup/weekly_peer_price_image.py` 상단 `SHIP_SECTIONS` / `DEFENSE_SECTIONS` / `CONSTRUCTION_SECTIONS` (그룹 라벨·표시명·야후 티커)
+- **방산·건설기계판**(같은 그림, `--universe defense|construction`): `output/peer_price_defense/글로벌_방산_주가흐름.png`
+  (한국 체계·탄약/기동·부체계·항공부품·우주 / 기타(중동·인도·일본·중국·남미) / 지수·ETF / 미국 / 유럽, 분할 p1 한국·기타 · p2 미국·유럽)
+  + `output/peer_price_construction/글로벌_건설기계_주가흐름.png`(지수·원자재 / OEM 지역별 / 농기계·광산·렌탈·딜러 / 부품,
+  분할 p1 OEM · p2 수요·부품). 섹션별 PNG 는 `01_…`~`05_…`. 같은 워크플로가 세 판을 모두 만든다
 - **기간 기준**: 거래일 오프셋 `TRADING_DAYS`(1W=5·1M=21·3M=63·1Y=252), 스파크라인 `SPARK_DAYS`(63=3M, 126=6M)
 - **실행**: "피어그룹 주가 엑셀" 워크플로에 통합(매일 07:10 KST + 수동). 대시보드 갤러리 페이지의 🔄 지금 갱신 버튼도 같은 워크플로를 쏜다
 - **레이아웃 확인만**: `python peergroup/weekly_peer_price_image.py --demo` (가짜 데이터)

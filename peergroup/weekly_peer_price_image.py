@@ -9,10 +9,12 @@ output/peer_price/ 아래에 저장한다.
   - 섹션별 PNG                     : 01_조선사.png … (한 섹션만 잘라 쓰고 싶을 때)
 
 실행:
-    python peergroup/weekly_peer_price_image.py          # 야후파이낸스 수집
-    python peergroup/weekly_peer_price_image.py --demo   # 가짜 데이터로 레이아웃만 확인
+    python peergroup/weekly_peer_price_image.py                        # 조선·해운(기본) 야후 수집
+    python peergroup/weekly_peer_price_image.py --universe defense      # 방산·항공우주 → output/peer_price_defense/
+    python peergroup/weekly_peer_price_image.py --universe construction # 건설기계 → output/peer_price_construction/
+    python peergroup/weekly_peer_price_image.py --demo                 # 가짜 데이터로 레이아웃만 확인
 
-종목 구성은 아래 SECTIONS 만 고치면 된다. (그룹 라벨, 표시명, 야후 티커)
+종목 구성은 아래 SHIP/DEFENSE/CONSTRUCTION_SECTIONS 만 고치면 된다. (그룹 라벨, 표시명, 야후 티커)
 """
 
 import argparse
@@ -39,7 +41,7 @@ except Exception:
 #   column: 0 = 왼쪽 단, 1 = 오른쪽 단 (전체 페이지 배치)
 #   market_cap=False 면 시총 칸을 비운다(지수·원자재)
 # =========================================================================
-SECTIONS = [
+SHIP_SECTIONS = [
     {
         "title": "지수 / 원자재", "column": 0, "market_cap": False,
         "groups": [
@@ -121,6 +123,110 @@ SECTIONS = [
     },
 ]
 
+
+# 방산 · 항공우주 — 한국 체계/부체계/우주 + 미국 프라임·드론 + 유럽 + 기타(중동·인도·일본·중국·남미)
+DEFENSE_SECTIONS = [
+    {
+        "title": "지수 / ETF", "column": 1, "market_cap": False, "file": "01_지수_ETF",
+        "groups": [
+            ("한국", [("PLUS K방산 ETF", "449450.KS")]),
+            ("미국", [("iShares US A&D(ITA)", "ITA"), ("Global X Defense(SHLD)", "SHLD")]),
+            ("유럽", [("Europe A&D(EUAD)", "EUAD")]),
+        ],
+    },
+    {
+        "title": "한국 방산 · 항공우주", "column": 0, "file": "02_한국방산",
+        "groups": [
+            ("체계", [("한화에어로스페이스", "012450.KS"), ("한국항공우주", "047810.KS"),
+                     ("LIG D&A(넥스원)", "079550.KS"), ("한화시스템", "272210.KS"),
+                     ("현대로템", "064350.KS")]),
+            ("탄약/기동", [("풍산", "103140.KS"), ("SNT다이내믹스", "003570.KS")]),
+            ("부체계", [("엠앤씨솔루션", "484870.KS"), ("아이쓰리시스템", "214430.KQ"),
+                       ("퍼스텍", "010820.KS"), ("휴니드", "005870.KS")]),
+            ("항공부품", [("켄코아에어로스페이스", "274090.KQ"), ("아스트", "067390.KQ")]),
+            ("우주", [("쎄트렉아이", "099320.KQ"), ("인텔리안테크", "189300.KQ"),
+                     ("컨텍", "451760.KQ"), ("제노코", "361390.KQ")]),
+        ],
+    },
+    {
+        "title": "기타 (중동 · 인도 · 일본 · 중국 · 남미)", "column": 0, "file": "03_기타",
+        "groups": [
+            ("중동", [("Elbit Systems(이스라엘)", "ESLT"), ("Aselsan(튀르키예)", "ASELS.IS")]),
+            ("인도", [("HAL(Hindustan Aero)", "HAL.NS"), ("Bharat Electronics", "BEL.NS")]),
+            ("일본", [("Mitsubishi HI", "7011.T"), ("Kawasaki HI", "7012.T"), ("IHI", "7013.T")]),
+            ("중국", [("AVIC Shenyang", "600760.SS"), ("AVIC Chengdu", "302132.SZ")]),
+            ("남미", [("Embraer", "ERJ")]),
+        ],
+    },
+    {
+        "title": "미국", "column": 1, "file": "04_미국",
+        "groups": [
+            ("프라임", [("Lockheed Martin", "LMT"), ("RTX", "RTX"), ("Northrop Grumman", "NOC"),
+                       ("General Dynamics", "GD"), ("L3Harris", "LHX"), ("Boeing", "BA"),
+                       ("Huntington Ingalls", "HII")]),
+            ("드론/신흥", [("Kratos", "KTOS"), ("AeroVironment", "AVAV")]),
+            ("엔진/부품", [("GE Aerospace", "GE"), ("Howmet", "HWM"), ("TransDigm", "TDG"),
+                          ("Curtiss-Wright", "CW")]),
+        ],
+    },
+    {
+        "title": "유럽", "column": 1, "file": "05_유럽",
+        "groups": [
+            ("체계", [("Rheinmetall", "RHM.DE"), ("BAE Systems", "BA.L"), ("Thales", "HO.PA"),
+                     ("Leonardo", "LDO.MI"), ("Saab", "SAAB-B.ST"), ("Hensoldt", "HAG.DE"),
+                     ("Renk", "R3NK.DE"), ("Kongsberg", "KOG.OL")]),
+            ("항공", [("Airbus", "AIR.PA"), ("Dassault Aviation", "AM.PA")]),
+            ("엔진/부품", [("Rolls-Royce", "RR.L"), ("Safran", "SAF.PA"), ("MTU Aero", "MTX.DE")]),
+        ],
+    },
+]
+
+# 건설기계 — OEM(지역별) + 농기계/광산/렌탈·딜러(수요 지표) + 부품
+CONSTRUCTION_SECTIONS = [
+    {
+        "title": "지수 / 원자재", "column": 0, "market_cap": False, "file": "01_지수_원자재",
+        "groups": [
+            ("인프라", [("PAVE(美 인프라 ETF)", "PAVE")]),
+            ("원자재", [("구리", "HG=F"), ("WTI", "CL=F")]),
+            ("환율", [("원/달러", "KRW=X")]),
+        ],
+    },
+    {
+        "title": "건설기계 OEM", "column": 0, "file": "02_건설기계OEM",
+        "groups": [
+            ("한국", [("HD현대건설기계", "267270.KS"), ("HD현대인프라코어", "042670.KS"),
+                     ("두산밥캣", "241560.KS")]),
+            ("미국/유럽", [("Caterpillar", "CAT"), ("Volvo", "VOLV-B.ST"), ("Terex", "TEX"),
+                          ("Oshkosh(JLG)", "OSK"), ("Manitowoc", "MTW"),
+                          ("Wacker Neuson", "WAC.DE"), ("Manitou", "MTU.PA")]),
+            ("일본", [("Komatsu", "6301.T"), ("Hitachi CM", "6305.T"), ("Kubota", "6326.T"),
+                     ("Sumitomo HI", "6302.T"), ("Takeuchi", "6432.T"), ("Tadano", "6395.T")]),
+            ("중국", [("SANY", "600031.SS"), ("XCMG", "000425.SZ"), ("Zoomlion", "1157.HK"),
+                     ("LiuGong", "000528.SZ"), ("Lonking", "3339.HK")]),
+            ("인도", [("Escorts Kubota", "ESCORTS.NS"), ("Action Construction", "ACE.NS"),
+                     ("BEML", "BEML.NS")]),
+        ],
+    },
+    {
+        "title": "농기계 / 광산 / 렌탈 · 딜러", "column": 1, "file": "03_농기계_광산_렌탈딜러",
+        "groups": [
+            ("농기계", [("Deere", "DE"), ("CNH", "CNH"), ("AGCO", "AGCO"), ("대동", "000490.KS")]),
+            ("광산장비", [("Sandvik", "SAND.ST"), ("Epiroc", "EPI-A.ST"), ("Metso", "METSO.HE"),
+                         ("Weir", "WEIR.L")]),
+            ("렌탈", [("United Rentals", "URI"), ("Ashtead(Sunbelt)", "AHT.L"), ("Herc", "HRI")]),
+            ("CAT 딜러", [("Finning", "FTT.TO"), ("Toromont", "TIH.TO")]),
+        ],
+    },
+    {
+        "title": "부품", "column": 1, "file": "04_부품",
+        "groups": [
+            ("한국", [("디와이파워", "210540.KS"), ("진성티이씨", "036890.KQ"), ("대창단조", "015230.KS"),
+                     ("동일금속", "109860.KQ"), ("흥국", "010240.KQ"), ("우림피티에스", "101170.KQ")]),
+            ("글로벌", [("KYB", "7242.T"), ("Hengli Hydraulic", "601100.SS")]),
+        ],
+    },
+]
+
 # 등락률·스파크라인 기준은 거래일 오프셋(커버리지 수급 페이지와 동일): 1W=5, 1M=21, 3M=63, 1Y=252
 TRADING_DAYS = {"1W": 5, "1M": 21, "3M": 63, "1Y": 252}
 # 스파크라인 기간(거래일). 63 = 3개월, 126 = 6개월
@@ -155,17 +261,55 @@ MUTED = "#595959"
 ROW_IN = 0.225         # 행 높이(inch) — 엑셀에 축소해 붙여도 글자가 읽히도록 크게
 DPI = 220
 
-OUTPUT_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output", "peer_price")
-PAGE_FILE = "글로벌_피어그룹_주가흐름.png"
+_OUT_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
 
-# 2페이지 분할본(기본 생성, --no-split 으로 생략): (파일명, 제목 꼬리, {섹션 제목: 단(0=왼쪽, 1=오른쪽)})
-SPLIT_PAGES = [
-    ("글로벌_피어그룹_주가흐름_p1_조선.png", "조선 · 기자재",
-     {"지수 / 원자재": 0, "조선사": 0, "엔진 / 기자재": 1}),
-    ("글로벌_피어그룹_주가흐름_p2_오일해운.png", "오일 · 해운",
-     {"오일 / 해양": 0, "해운": 1}),
-]
+# 유니버스(--universe): 섹션 구성·출력 폴더·전체 페이지 파일명·2페이지 분할본.
+#   split: (파일명, 제목 꼬리, {섹션 제목: 단(0=왼쪽, 1=오른쪽)})
+UNIVERSES = {
+    "ship": {
+        "sections": SHIP_SECTIONS, "out_dir": os.path.join(_OUT_ROOT, "peer_price"),
+        "page_file": "글로벌_피어그룹_주가흐름.png",
+        "split": [
+            ("글로벌_피어그룹_주가흐름_p1_조선.png", "조선 · 기자재",
+             {"지수 / 원자재": 0, "조선사": 0, "엔진 / 기자재": 1}),
+            ("글로벌_피어그룹_주가흐름_p2_오일해운.png", "오일 · 해운",
+             {"오일 / 해양": 0, "해운": 1}),
+        ],
+    },
+    "defense": {
+        "sections": DEFENSE_SECTIONS, "out_dir": os.path.join(_OUT_ROOT, "peer_price_defense"),
+        "page_file": "글로벌_방산_주가흐름.png",
+        "split": [
+            ("글로벌_방산_주가흐름_p1_한국기타.png", "한국 · 기타",
+             {"한국 방산 · 항공우주": 0, "기타 (중동 · 인도 · 일본 · 중국 · 남미)": 1}),
+            ("글로벌_방산_주가흐름_p2_미국유럽.png", "미국 · 유럽",
+             {"지수 / ETF": 0, "미국": 0, "유럽": 1}),
+        ],
+    },
+    "construction": {
+        "sections": CONSTRUCTION_SECTIONS, "out_dir": os.path.join(_OUT_ROOT, "peer_price_construction"),
+        "page_file": "글로벌_건설기계_주가흐름.png",
+        "split": [
+            ("글로벌_건설기계_주가흐름_p1_OEM.png", "OEM",
+             {"지수 / 원자재": 0, "건설기계 OEM": 1}),
+            ("글로벌_건설기계_주가흐름_p2_수요부품.png", "농기계 · 광산 · 렌탈 · 부품",
+             {"농기계 / 광산 / 렌탈 · 딜러": 0, "부품": 1}),
+        ],
+    },
+}
+
+# 모듈 전역 — select_universe() 가 채운다(기본 ship). 옛 import 호환.
+SECTIONS = SHIP_SECTIONS
+OUTPUT_DIR = UNIVERSES["ship"]["out_dir"]
+PAGE_FILE = UNIVERSES["ship"]["page_file"]
+SPLIT_PAGES = UNIVERSES["ship"]["split"]
+
+
+def select_universe(name):
+    global SECTIONS, OUTPUT_DIR, PAGE_FILE, SPLIT_PAGES
+    u = UNIVERSES[name]
+    SECTIONS, OUTPUT_DIR, PAGE_FILE, SPLIT_PAGES = u["sections"], u["out_dir"], u["page_file"], u["split"]
+    return u
 
 
 # =========================================================================
@@ -476,13 +620,18 @@ def render_single(sec, rows, caps, scales, path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--demo", action="store_true", help="가짜 데이터로 레이아웃만 확인")
-    ap.add_argument("--out", default=OUTPUT_DIR)
+    ap.add_argument("--universe", default="ship", choices=sorted(UNIVERSES),
+                    help="종목 구성: ship(조선·해운, 기본) / defense(방산·항공우주) / construction(건설기계)")
+    ap.add_argument("--out", default=None, help="출력 폴더(기본: 유니버스별 output/peer_price*)")
     ap.add_argument("--no-split", action="store_true", help="2페이지 분할본(SPLIT_PAGES) 생성 생략")
     args = ap.parse_args()
+    select_universe(args.universe)
+    if args.out is None:
+        args.out = OUTPUT_DIR
 
     setup_font()
     tickers = all_tickers()
-    print(f"📈 {len(tickers)}개 종목 {'(데모)' if args.demo else '야후 수집'} 시작...")
+    print(f"📈 [{args.universe}] {len(tickers)}개 종목 {'(데모)' if args.demo else '야후 수집'} 시작...")
     if args.demo:
         prices, caps = demo_data(tickers)
     else:
@@ -506,7 +655,8 @@ def main():
         render_page(sections_rows, caps, scales, asof, path, layout=layout, subtitle=sub)
         print(f"🖼  {path}")
     for i, (sec, rows) in enumerate(sections_rows, 1):
-        fn = f"{i:02d}_{sec['title'].replace(' / ', '_').replace('/', '_').replace(' ', '')}.png"
+        fn = sec.get("file") or f"{i:02d}_{sec['title'].replace(' / ', '_').replace('/', '_').replace(' ', '')}"
+        fn += ".png"
         render_single(sec, rows, caps, scales, os.path.join(args.out, fn))
         print(f"🖼  {os.path.join(args.out, fn)}")
 
