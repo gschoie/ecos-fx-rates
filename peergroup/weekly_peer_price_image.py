@@ -638,9 +638,14 @@ def main():
         caps = fetch_market_caps_usd_m([t for t in tickers if t in prices])
 
     metrics = {t: compute_metrics(s) for t, s in prices.items()}
+    # 기준일 = 주식(시총 섹션) 가운데 평일 날짜의 최대. 선물·환율은 일요일 봉이 있고, 야후가 간혹 주말
+    # 타임스탬프의 행을 섞어 주므로 max 를 그대로 쓰면 일요일 날짜가 찍힌다(11/8 실측). 주말 행은 로그로 남긴다.
     stock_t = {t for sec in SECTIONS if sec.get("market_cap", True) for _, items in sec["groups"] for _, t in items}
-    asof = max((m["last_date"] for t, m in metrics.items() if t in stock_t), default=None) \
-        or max(m["last_date"] for m in metrics.values())   # 선물·환율은 일요일 봉이 있어 주식 기준으로
+    weekend = {t: m["last_date"] for t, m in metrics.items() if m["last_date"].weekday() >= 5}
+    if weekend:
+        print("ℹ️ 주말 날짜 마지막 봉: " + ", ".join(f"{t} {d:%m/%d}" for t, d in weekend.items()))
+    cands = [m["last_date"] for t, m in metrics.items() if t in stock_t and m["last_date"].weekday() < 5]
+    asof = max(cands) if cands else max(m["last_date"] for m in metrics.values())
 
     sections_rows = [(sec, section_rows(sec, metrics)) for sec in SECTIONS]
     # 막대 스케일은 원자재(지수)를 빼고 주식만으로
