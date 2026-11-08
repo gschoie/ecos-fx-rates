@@ -155,7 +155,7 @@ DEFENSE_SECTIONS = [
             ("인도", [("HAL(Hindustan Aero)", "HAL.NS"), ("Bharat Electronics", "BEL.NS")]),
             ("일본", [("Mitsubishi HI", "7011.T"), ("Kawasaki HI", "7012.T"), ("IHI", "7013.T")]),
             ("중국", [("AVIC Shenyang", "600760.SS"), ("AVIC Xi'an Aircraft", "000768.SZ")]),
-            ("남미", [("Embraer", "EMBR3.SA")]),
+            ("남미", [("Embraer", "EMBJ")]),   # 2025-11 티커 변경 ERJ→EMBJ(NYSE), B3 는 EMBJ3
         ],
     },
     {
