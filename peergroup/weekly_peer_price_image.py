@@ -158,7 +158,7 @@ DEFENSE_SECTIONS = [
                         ("Eutelsat", "ETL.PA"), ("SES", "SESG.PA")]),
             ("관측/데이터", [("Planet Labs", "PL"), ("MDA Space", "MDA.TO")]),
             ("부품/시스템", [("Redwire", "RDW"), ("Karman", "KRMN"), ("OHB", "OHB.DE")]),
-            ("일본", [("ispace", "9348.T"), ("QPS Research", "5595.T")]),
+            ("일본", [("ispace", "9348.T"), ("Astroscale", "186A.T")]),   # QPS 5595.T 는 야후 무응답(11/9)
         ],
     },
     {
