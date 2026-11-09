@@ -3,8 +3,8 @@
 
   ① 한국 방산 체계 5사 Performance : 종목별 선
   ② 한국 방산 부체계(부품) Performance : 종목별 선
-  ③ 한국 체계 5사 vs 부체계 vs 미국 프라임 vs 유럽 체계 : 묶음별 시총가중 지수
-  ④ 드론 vs 엔진/부품 vs 항공 (글로벌) : 테마별 시총가중 지수
+  ③ 한국 체계 5사 vs 부체계 vs 미국 체계 vs 유럽 체계 : 묶음별 시총가중 지수
+  ④ 드론 vs 엔진/부품 vs 항공 vs 우주 (글로벌) : 테마별 시총가중 지수
 
 11/9 사용자 요청("방산쪽도 주가 비교 index 차트"). 12주(60거래일) 전 = 100, KOSPI 거래일 기준,
 묶음 지수는 기준일 USD 시총 가중(고정 가중치) — 산식·그리기·저장은 전부 조선판에서 가져온다.
@@ -32,6 +32,9 @@ import weekly_peer_index_image as idx   # noqa: E402  (window·rebase·cap_weigh
 
 KR_PRIME = [("한화에어로스페이스", "012450.KS"), ("한국항공우주", "047810.KS"), ("LIG D&A", "079550.KS"),
             ("한화시스템", "272210.KS"), ("현대로템", "064350.KS")]
+# ① 종목별 선 색 — 사용자 지정(11/9): 한화에어로 = 한화 주황, 한화시스템 = 그보다 옅은 주황, KAI = 하늘색, LIG = 남색, 로템 = 초록
+PRIME_COLORS = {"한화에어로스페이스": "#F37321", "한화시스템": "#F9B37A", "한국항공우주": "#5BB5E0",
+                "LIG D&A": "#1B2E6B", "현대로템": "#2CA02C"}
 # 부체계·부품(탄약/기동 포함) — 주가흐름표의 탄약/기동·부체계 + 빅텍·코츠테크놀로지·한일단조·삼영컴텍·웨이브일렉트로닉스
 KR_SUB = [("풍산", "103140.KS"), ("SNT다이내믹스", "003570.KS"), ("엠앤씨솔루션", "484870.KS"),
           ("아이쓰리시스템", "214430.KQ"), ("퍼스텍", "010820.KS"), ("휴니드", "005870.KS"),
@@ -41,17 +44,23 @@ US_PRIME = [("Lockheed Martin", "LMT"), ("RTX", "RTX"), ("Northrop Grumman", "NO
             ("L3Harris", "LHX"), ("Boeing", "BA"), ("Huntington Ingalls", "HII")]
 EU_PRIME = [("Rheinmetall", "RHM.DE"), ("BAE Systems", "BA.L"), ("Thales", "HO.PA"), ("Leonardo", "LDO.MI"),
             ("Saab", "SAAB-B.ST"), ("Hensoldt", "HAG.DE"), ("Renk", "R3NK.DE"), ("Kongsberg", "KOG.OL")]
-GROUPS = {   # ③
-    "한국 체계 5사": KR_PRIME, "한국 부체계": KR_SUB, "미국 프라임": US_PRIME, "유럽 체계": EU_PRIME,
+GROUPS = {   # ③ ('미국 프라임' → '미국 체계', 11/9 사용자)
+    "한국 체계 5사": KR_PRIME, "한국 부체계": KR_SUB, "미국 체계": US_PRIME, "유럽 체계": EU_PRIME,
 }
-GROUP_COLORS = {"한국 체계 5사": "#A68A64", "한국 부체계": "#2CA02C", "미국 프라임": "#1F5FBF", "유럽 체계": "#D62728"}
+GROUP_COLORS = {"한국 체계 5사": "#A68A64", "한국 부체계": "#2CA02C", "미국 체계": "#1F5FBF", "유럽 체계": "#D62728"}
 THEMES = {   # ④ 글로벌 테마(주가흐름표의 미국 드론/신흥·엔진/부품, 유럽 항공·엔진/부품 묶음)
     "드론": [("Kratos", "KTOS"), ("AeroVironment", "AVAV")],
     "엔진/부품": [("GE Aerospace", "GE"), ("Howmet", "HWM"), ("TransDigm", "TDG"), ("Curtiss-Wright", "CW"),
               ("Rolls-Royce", "RR.L"), ("Safran", "SAF.PA"), ("MTU Aero", "MTX.DE")],
     "항공": [("Airbus", "AIR.PA"), ("Dassault Aviation", "AM.PA"), ("Embraer", "EMBJ")],
+    # 우주(11/9 사용자 "4번째 그림에 우주도 넣자") — 주가변동표 '글로벌 우주 · 위성' 묶음과 같은 티커.
+    # 12주 창에 상장 이력이 모자라거나 시총이 없는 종목은 cap_weighted 가 제외하고 로그에 남긴다.
+    "우주": [("Rocket Lab", "RKLB"), ("Firefly Aerospace", "FLY"), ("Intuitive Machines", "LUNR"),
+           ("AST SpaceMobile", "ASTS"), ("Iridium", "IRDM"), ("Viasat", "VSAT"), ("Eutelsat", "ETL.PA"), ("SES", "SESG.PA"),
+           ("Planet Labs", "PL"), ("MDA Space", "MDA.TO"), ("Redwire", "RDW"), ("Karman", "KRMN"), ("OHB", "OHB.DE"),
+           ("ispace", "9348.T"), ("Astroscale", "186A.T")],
 }
-THEME_COLORS = {"드론": "#8C6BB1", "엔진/부품": "#FF9F1C", "항공": "#1F5FBF"}
+THEME_COLORS = {"드론": "#8C6BB1", "엔진/부품": "#FF9F1C", "항공": "#1F5FBF", "우주": "#111111"}
 LINE_COLORS = idx.LINE_COLORS + ["#17BECF", "#BCBD22", "#E377C2", "#7F7F7F"]   # ② 11종목용
 
 OUT_DIR = os.path.join(base._OUT_ROOT, "peer_price_defense")
@@ -66,11 +75,12 @@ def all_tickers():
     return list(dict.fromkeys(out))
 
 
-def lines(ax, df, items, title, ncol):
+def lines(ax, df, items, title, ncol, colors=None):
     x = range(len(df))
     for i, (name, t) in enumerate(items):
         if t in df.columns and df[t].notna().all():
-            ax.plot(x, idx.rebase(df[t]).values, color=LINE_COLORS[i % len(LINE_COLORS)], lw=idx.LW - 0.4, label=name)
+            c = (colors or {}).get(name) or LINE_COLORS[i % len(LINE_COLORS)]
+            ax.plot(x, idx.rebase(df[t]).values, color=c, lw=idx.LW - 0.4, label=name)
         else:
             print(f"  ⚠️ 선 제외 {name}({t}): {'가격 없음' if t not in df.columns else '구간 결측'}")
     idx.style(ax, title); idx.xticks(ax, df.index); idx.legend(ax, ncol=ncol)
@@ -85,7 +95,7 @@ def indices(ax, df, caps, groups, colors, title, ncol):
     idx.style(ax, title); idx.xticks(ax, df.index); idx.legend(ax, ncol=ncol)
 
 
-NOTE_LINES = 6
+NOTE_LINES = 7
 
 
 def footnote(asof):
@@ -94,18 +104,19 @@ def footnote(asof):
         f"기준일 {asof:%Y.%m.%d}  ·  자료: Yahoo Finance  ·  INDEX = {idx.WEEKS}주({idx.DAYS}거래일) 전 종가 = 100, KOSPI 거래일 기준(해외 휴장일은 직전값)",
         "묶음 지수 = 기준일 USD 시총 가중(고정 가중치), 범례 괄호는 지수에 든 종목 수",
         f"한국 부체계 = {names(KR_SUB)}",
-        f"미국 프라임 = {names(US_PRIME)}",
+        f"미국 체계 = {names(US_PRIME)}",
         f"유럽 체계 = {names(EU_PRIME)}",
         f"드론 = {names(THEMES['드론'])} / 엔진·부품 = {names(THEMES['엔진/부품'])} / 항공 = {names(THEMES['항공'])}",
+        f"우주 = {names(THEMES['우주'])}",
     ])
 
 
 def render(df, caps, out_dir, asof):
     draws = [
-        lambda ax: lines(ax, df, KR_PRIME, f"한국 방산 체계 {len(KR_PRIME)}사 Performance", 3),
+        lambda ax: lines(ax, df, KR_PRIME, f"한국 방산 체계 {len(KR_PRIME)}사 Performance", 3, PRIME_COLORS),
         lambda ax: lines(ax, df, KR_SUB, "한국 방산 부체계(부품) Performance", 3),
         lambda ax: indices(ax, df, caps, GROUPS, GROUP_COLORS, "한국 체계·부체계 vs. 미국·유럽 (시총가중)", 2),
-        lambda ax: indices(ax, df, caps, THEMES, THEME_COLORS, "드론 vs. 엔진/부품 vs. 항공 (글로벌, 시총가중)", 3),
+        lambda ax: indices(ax, df, caps, THEMES, THEME_COLORS, "드론 · 엔진/부품 · 항공 · 우주 (글로벌, 시총가중)", 4),
     ]
     for fn, draw in zip(OUT_ONE, draws):
         fig, ax = plt.subplots(figsize=(idx.W_IN, idx.H_IN), dpi=base.DPI)

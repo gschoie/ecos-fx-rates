@@ -67,6 +67,18 @@ DAYS = WEEKS * 5                # 거래일 환산
 
 GROUP_COLORS = {"한국": "#A68A64", "중국": "#D62728", "일본": "#1F5FBF", "싱가포르": "#5BB5E0"}
 LINE_COLORS = ["#1F5FBF", "#A68A64", "#2CA02C", "#D62728", "#111111", "#8C6BB1", "#FF9F1C"]
+# ② 종목별 선 스타일 — 사용자 지정(11/9): 그룹 색(한화 주황·현대 초록·삼성 파랑), 엔진 2사는 모회사 색 점선.
+# 대한조선은 지정이 없어 검정. 여기 없는 이름은 LINE_COLORS 순번 색.
+HANWHA, HYUNDAI, SAMSUNG = "#F37321", "#00A651", "#1428A0"
+SHIP_STYLE = {
+    "HD현대중공업":   dict(color=HYUNDAI),
+    "HD한국조선해양": dict(color="#6FCB85"),              # 덜 진한 현대 초록
+    "삼성중공업":     dict(color=SAMSUNG),
+    "한화오션":       dict(color=HANWHA),
+    "대한조선":       dict(color="#111111"),
+    "한화엔진":       dict(color=HANWHA, ls=(0, (4, 2))),   # 점선
+    "HD현대마린엔진": dict(color=HYUNDAI, ls=(0, (4, 2))),
+}
 TEXT, MUTED, GRID = base.TEXT, base.MUTED, base.GRID
 
 W_IN, H_IN = 6.4, 4.8           # 차트 1장 크기(inch) — 4장 묶음은 2×2 격자 + 아래 각주 띠
@@ -160,7 +172,8 @@ def chart2(ax, df):
     x = range(len(df))
     for i, (name, t) in enumerate(KR_SHIP):
         if t in df.columns and df[t].notna().all():
-            ax.plot(x, rebase(df[t]).values, color=LINE_COLORS[i % len(LINE_COLORS)], lw=LW - 0.4, label=name)
+            st = SHIP_STYLE.get(name, {"color": LINE_COLORS[i % len(LINE_COLORS)]})
+            ax.plot(x, rebase(df[t]).values, color=st["color"], ls=st.get("ls", "-"), lw=LW - 0.4, label=name)
     style(ax, f"한국 조선 {len(KR_SHIP)}사 Performance"); xticks(ax, df.index); legend(ax, ncol=4)
 
 

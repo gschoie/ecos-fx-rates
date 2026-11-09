@@ -54,8 +54,8 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
   출력 `output/peer_price/조선주_INDEX_4종.png`(2×2 묶음, 각주는 맨 아래) + 낱장 `IDX1~4_*.png`(각각 .svg 동반)
   구성은 스크립트 상단 `KR_SHIP`·`GROUPS`·`CHAIN`.
 - **방산 INDEX 차트 4종**(`peergroup/weekly_defense_index_image.py`, 같은 워크플로, 조선판 틀 재사용): ① 한국 방산 체계 5사
-  Performance ② 한국 방산 부체계(부품) 11사 Performance ③ 한국 체계·부체계 vs 미국 프라임 vs 유럽 체계(시총가중)
-  ④ 드론 vs 엔진/부품 vs 항공(글로벌, 시총가중). 출력 `output/peer_price_defense/방산_INDEX_4종.png` + 낱장 `DIDX1~4_*`.
+  Performance ② 한국 방산 부체계(부품) 11사 Performance ③ 한국 체계·부체계 vs 미국 체계 vs 유럽 체계(시총가중)
+  ④ 드론 vs 엔진/부품 vs 항공 vs 우주(글로벌, 시총가중). 출력 `output/peer_price_defense/방산_INDEX_4종.png` + 낱장 `DIDX1~4_*`.
   구성은 `KR_PRIME`·`KR_SUB`·`GROUPS`·`THEMES`.
 
 ## 커버리지 컨센서스 추이 (이미지)
