@@ -154,7 +154,7 @@ DEFENSE_SECTIONS = [
         "groups": [
             ("발사체/탐사", [("Rocket Lab", "RKLB"), ("Firefly Aerospace", "FLY"),
                            ("Intuitive Machines", "LUNR")]),
-            ("위성통신", [("AST SpaceMobile", "ASTS"), ("Iridium", "IRDM"), ("EchoStar", "SATS"),
+            ("위성통신", [("AST SpaceMobile", "ASTS"), ("Iridium", "IRDM"), ("Viasat", "VSAT"),   # EchoStar SATS 는 야후 이력이 짧아 1M~1Y 공란(11/9)
                         ("Eutelsat", "ETL.PA"), ("SES", "SESG.PA")]),
             ("관측/데이터", [("Planet Labs", "PL"), ("MDA Space", "MDA.TO")]),
             ("부품/시스템", [("Redwire", "RDW"), ("Karman", "KRMN"), ("OHB", "OHB.DE")]),
