@@ -127,11 +127,12 @@ SHIP_SECTIONS = [
 # 방산 · 항공우주 — 한국 체계/부체계/우주 + 미국 프라임·드론 + 유럽 + 기타(중동·인도·일본·중국·남미)
 DEFENSE_SECTIONS = [
     {
-        "title": "지수 / ETF", "column": 1, "market_cap": False, "file": "01_지수_ETF",
+        "title": "지수 / ETF", "column": 0, "market_cap": False, "file": "01_지수_ETF",
         "groups": [
             ("한국", [("PLUS K방산 ETF", "449450.KS")]),
             ("미국", [("iShares US A&D(ITA)", "ITA"), ("Global X Defense(SHLD)", "SHLD")]),
             ("유럽", [("Europe A&D(EUAD)", "EUAD")]),
+            ("우주", [("Procure Space(UFO)", "UFO")]),
         ],
     },
     {
@@ -149,13 +150,15 @@ DEFENSE_SECTIONS = [
         ],
     },
     {
-        "title": "기타 (중동 · 인도 · 일본 · 중국 · 남미)", "column": 0, "file": "03_기타",
+        "title": "글로벌 우주 · 위성", "column": 0, "file": "06_우주위성",
         "groups": [
-            ("중동", [("Elbit Systems(이스라엘)", "ESLT"), ("Aselsan(튀르키예)", "ASELS.IS")]),
-            ("인도", [("HAL(Hindustan Aero)", "HAL.NS"), ("Bharat Electronics", "BEL.NS")]),
-            ("일본", [("Mitsubishi HI", "7011.T"), ("Kawasaki HI", "7012.T"), ("IHI", "7013.T")]),
-            ("중국", [("AVIC Shenyang", "600760.SS"), ("AVIC Xi'an Aircraft", "000768.SZ")]),
-            ("남미", [("Embraer", "EMBJ")]),   # 2025-11 티커 변경 ERJ→EMBJ(NYSE), B3 는 EMBJ3
+            ("발사체/탐사", [("Rocket Lab", "RKLB"), ("Firefly Aerospace", "FLY"),
+                           ("Intuitive Machines", "LUNR")]),
+            ("위성통신", [("AST SpaceMobile", "ASTS"), ("Iridium", "IRDM"), ("EchoStar", "SATS"),
+                        ("Eutelsat", "ETL.PA"), ("SES", "SESG.PA")]),
+            ("관측/데이터", [("Planet Labs", "PL"), ("MDA Space", "MDA.TO")]),
+            ("부품/시스템", [("Redwire", "RDW"), ("Karman", "KRMN"), ("OHB", "OHB.DE")]),
+            ("일본", [("ispace", "9348.T"), ("QPS Research", "5595.T")]),
         ],
     },
     {
@@ -177,6 +180,16 @@ DEFENSE_SECTIONS = [
                      ("Renk", "R3NK.DE"), ("Kongsberg", "KOG.OL")]),
             ("항공", [("Airbus", "AIR.PA"), ("Dassault Aviation", "AM.PA")]),
             ("엔진/부품", [("Rolls-Royce", "RR.L"), ("Safran", "SAF.PA"), ("MTU Aero", "MTX.DE")]),
+        ],
+    },
+    {
+        "title": "기타 (중동 · 인도 · 일본 · 중국 · 남미)", "column": 1, "file": "03_기타",
+        "groups": [
+            ("중동", [("Elbit Systems(이스라엘)", "ESLT"), ("Aselsan(튀르키예)", "ASELS.IS")]),
+            ("인도", [("HAL(Hindustan Aero)", "HAL.NS"), ("Bharat Electronics", "BEL.NS")]),
+            ("일본", [("Mitsubishi HI", "7011.T"), ("Kawasaki HI", "7012.T"), ("IHI", "7013.T")]),
+            ("중국", [("AVIC Shenyang", "600760.SS"), ("AVIC Xi'an Aircraft", "000768.SZ")]),
+            ("남미", [("Embraer", "EMBJ")]),   # 2025-11 티커 변경 ERJ→EMBJ(NYSE), B3 는 EMBJ3
         ],
     },
 ]
@@ -279,10 +292,10 @@ UNIVERSES = {
         "sections": DEFENSE_SECTIONS, "out_dir": os.path.join(_OUT_ROOT, "peer_price_defense"),
         "page_file": "글로벌_방산_주가흐름.png",
         "split": [
-            ("글로벌_방산_주가흐름_p1_한국기타.png", "한국 · 기타",
-             {"한국 방산 · 항공우주": 0, "기타 (중동 · 인도 · 일본 · 중국 · 남미)": 1}),
-            ("글로벌_방산_주가흐름_p2_미국유럽.png", "미국 · 유럽",
-             {"지수 / ETF": 0, "미국": 0, "유럽": 1}),
+            ("글로벌_방산_주가흐름_p1_한국기타.png", "한국 · 우주",
+             {"지수 / ETF": 0, "한국 방산 · 항공우주": 0, "글로벌 우주 · 위성": 1}),
+            ("글로벌_방산_주가흐름_p2_미국유럽.png", "미국 · 유럽 · 기타",
+             {"미국": 0, "유럽": 1, "기타 (중동 · 인도 · 일본 · 중국 · 남미)": 1}),
         ],
     },
     "construction": {
