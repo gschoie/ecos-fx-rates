@@ -57,6 +57,10 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
   Performance ② 한국 방산 부체계(부품) 11사 Performance ③ 한국 체계·부체계 vs 미국 체계 vs 유럽 체계(시총가중)
   ④ 드론 vs 엔진/부품 vs 항공 vs 우주(글로벌, 시총가중). 출력 `output/peer_price_defense/방산_INDEX_4종.png` + 낱장 `DIDX1~4_*`.
   구성은 `KR_PRIME`·`KR_SUB`·`GROUPS`·`THEMES`.
+- **건설기계 INDEX 차트 4종**(`peergroup/weekly_construction_index_image.py`, 같은 워크플로): ① HD건설기계·두산밥캣·
+  한국 부품사(시총가중) ② 한국 2사 vs 미국·중국·일본 피어(시총가중) ③ 대형 OEM 8(HD건기·CAT·Komatsu·Hitachi CM·SANY·XCMG·
+  Zoomlion·LiuGong — 중국은 SANY 빼고 점선) ④ 두산밥캣·Deere·Kobelco(Kobe Steel)·대동. 출력
+  `output/peer_price_construction/건설기계_INDEX_4종.png` + 낱장 `CIDX1~4_*`.
 
 ## 커버리지 컨센서스 추이 (이미지)
 
