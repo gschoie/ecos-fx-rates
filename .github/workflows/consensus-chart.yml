@@ -1,9 +1,13 @@
 name: 커버리지 컨센서스 추이 이미지
 
-# 수동 실행 전용: Actions → "커버리지 컨센서스 추이 이미지" → Run workflow
-# FnGuide·네이버 컨센서스 시계열(최근 6개월) → output/consensus/*.png 갱신 (위클리용)
+# FnGuide·네이버 컨센서스 시계열(최근 6개월) → output/consensus/*.png|svg 갱신 (위클리용)
+#   - 매일 16:50 KST(07:50 UTC) 자동 — 11/9 사용자: 주보 데이터 4종은 장 마감 후 매일 한 번. 정시는 GS-DB2 쪽
+#     Claude 예약 작업(평일 16:42 KST, dispatch)이 맡고 이 크론은 안전망(무료 러너 크론은 몇 시간 밀릴 수 있다).
+#   - 수동: Actions → "커버리지 컨센서스 추이 이미지" → Run workflow, 또는 대시보드 컨센서스 갤러리의 🔄 버튼.
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "50 7 * * *"    # 16:50 KST 매일
 
 permissions:
   contents: write   # 갱신된 png 커밋·푸시
