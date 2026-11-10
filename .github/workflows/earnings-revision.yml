@@ -1,0 +1,52 @@
+name: 건설기계 Earnings Revision 적재
+
+# Yahoo Finance 애널리스트 추정(상향·하향 건수, 컨센 EPS 추이)을 매일 한 번 받아
+# output/earnings_revision/er_history.csv 에 누적한다. Yahoo 는 '오늘 값'만 주므로 하루라도 빠지면 그날은 비게 된다.
+#   - 매일 08:10 UTC(17:10 KST) 자동. 같은 날 재실행해도 그날 값만 덮어쓴다.
+#   - 수동: Actions → "건설기계 Earnings Revision 적재" → Run workflow
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "10 8 * * *"    # 17:10 KST 매일
+
+permissions:
+  contents: write
+
+concurrency:
+  group: earnings-revision
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: 패키지 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install "yfinance>=0.2.54" "pandas>=2.2"
+
+      - name: ER 스냅샷 수집·적재
+        run: python consensus/er_snapshot.py
+
+      - name: 커밋 및 푸시
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add output/earnings_revision
+          if git diff --cached --quiet; then
+            echo "변경 없음 — 커밋 생략"
+          else
+            git commit -m "chore: Earnings Revision 스냅샷 $(TZ=Asia/Seoul date +%Y-%m-%d)"
+            for i in 1 2 3; do
+              git push origin HEAD:main && { echo "push 성공"; break; }
+              git pull --rebase --autostash origin main || exit 1
+              sleep 3
+            done
+          fi
