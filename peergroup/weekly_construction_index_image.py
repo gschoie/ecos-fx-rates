@@ -118,7 +118,7 @@ def render(df, caps, out_dir, asof):
         lambda ax: chart1(ax, df, caps),
         lambda ax: chart2(ax, df, caps),
         lambda ax: lines(ax, df, BIG, BIG_STYLE, "대형 OEM — HD건설기계 · CAT · 일본 · 중국", 4),
-        lambda ax: lines(ax, df, SMALL, SMALL_STYLE, "소형·농기계 — 두산밥캣 · Deere · CNH · Kobelco · 대동", 5),
+        lambda ax: lines(ax, df, SMALL, SMALL_STYLE, "소형·농기계 — 두산밥캣 · Deere · CNH · Kobelco · 대동", 3),
     ]
     for fn, draw in zip(OUT_ONE, draws):
         fig, ax = plt.subplots(figsize=(idx.W_IN, idx.H_IN), dpi=base.DPI)
