@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""건설기계·방산 글로벌 피어 Earnings Revision(ER) 일별 스냅샷 적재.
+"""조선·방산·건설기계 글로벌 피어 Earnings Revision(ER) 일별 스냅샷 적재.
 
 Yahoo Finance 의 애널리스트 추정치 페이지(yfinance)는 '오늘 시점'의 값만 준다.
   - eps_revisions     : 최근 7일/30일 EPS 상향·하향 건수
@@ -124,7 +124,8 @@ def _eps(x):
 
 
 def _chg(cur, old):
-    return None if cur is None or old is None else cur / old - 1
+    # 기준 EPS 가 0 이하(적자)면 변화율이 무의미(부호 뒤집힘) → 공란
+    return None if cur is None or old is None or old <= 0 else cur / old - 1
 
 
 def _er(up, dn, n):
@@ -187,8 +188,21 @@ def main():
             rows += r
             print(f"OK   {ticker:<10} {name:<20} {len(r)}행")
         except Exception as e:
-            failed.append(ticker)
+            failed.append((sector, region, name, ticker))
             print(f"FAIL {ticker:<10} {name:<20} {e}")
+    if failed:  # 야후 429·크럼 오류는 일시적 — 잠시 쉬고 실패분만 한 번 더
+        print(f"\n실패 {len(failed)}종목 30초 후 재시도")
+        time.sleep(30)
+        retry, failed = failed, []
+        for sector, region, name, ticker in retry:
+            try:
+                r = rows_for(sector, region, name, ticker, today)
+                rows += r
+                print(f"OK   {ticker:<10} {name:<20} {len(r)}행 (재시도)")
+            except Exception as e:
+                failed.append((sector, region, name, ticker))
+                print(f"FAIL {ticker:<10} {name:<20} {e}")
+            time.sleep(2)
     if not rows:
         sys.exit("전 종목 수집 실패 — 기존 이력 유지, 종료")
 
@@ -204,7 +218,10 @@ def main():
         hist = pd.concat([old, new], ignore_index=True)[COLS]
     else:
         hist = new
-    hist = hist.sort_values(["date", "ticker", "period"]).reset_index(drop=True)
+    # 정렬: 날짜 → COMPANIES 순서(대시보드 표가 이 순서를 그대로 쓴다) → period
+    rank = {t: i for i, (*_, t) in enumerate(COMPANIES)}
+    hist["_r"] = hist["ticker"].map(rank).fillna(999)
+    hist = hist.sort_values(["date", "_r", "period"]).drop(columns="_r").reset_index(drop=True)
     hist.to_csv(HIST, index=False, encoding="utf-8-sig", float_format="%.6g")
 
     # 오늘 요약: 종목 1줄 × (FY1, FY2)
@@ -222,7 +239,7 @@ def main():
 
     print(f"\n{today}: {len(new)}행 적재 → {os.path.relpath(HIST)} (누적 {hist['date'].nunique()}일)")
     if failed:
-        print("실패:", ", ".join(failed))
+        print("실패(기존 값 유지):", ", ".join(t for *_, t in failed))
 
 
 if __name__ == "__main__":
