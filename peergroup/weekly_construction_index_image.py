@@ -4,9 +4,10 @@
   ① HD건설기계 · 두산밥캣 · 한국 건설기계 부품사(시총가중) : 종목 2 + 부품 지수 1
   ② 한국 2사 vs 미국 vs 중국 vs 일본 피어그룹 : 묶음별 시총가중 지수
   ③ HD건설기계 · Caterpillar · Komatsu · Hitachi CM · SANY · XCMG · Zoomlion · LiuGong : 종목별 선(중국은 SANY 빼고 점선)
-  ④ 두산밥캣 · Deere · Kobelco · 대동 : 종목별 선
+  ④ 두산밥캣 · Deere · CNH · Kobelco · 대동 : 종목별 선
 
-11/10 사용자 요청. 색 지정(사용자): HD건설기계 초록 · 두산밥캣 남색 · 한국 묶음 골드 · 중국 빨강.
+11/10 사용자 요청. 색 지정(사용자): HD건설기계 초록 · 두산밥캣 남색 · 한국 묶음 골드(= DAOL 리포트 골드, 조선판 '한국' 묶음과
+같은 #A68A64 — 노란 금색이 아니다) · 중국 빨강. 11/10 2차: CAT 노랑과 Hitachi 주황이 구분이 안 돼 Hitachi 를 검정으로, ④ 에 CNH.
 12주(60거래일) 전 = 100, KOSPI 거래일 기준, 묶음 지수는 기준일 USD 시총 가중 — 산식·그리기·저장은 조선판 import.
 종목 집합은 weekly_peer_price_image.CONSTRUCTION_SECTIONS(건기 주가변동표)와 같은 티커.
 
@@ -39,21 +40,21 @@ JP_OEM = [("Komatsu", "6301.T"), ("Hitachi CM", "6305.T"), ("Kubota", "6326.T"),
           ("Takeuchi", "6432.T"), ("Tadano", "6395.T")]
 GROUPS = {"한국 2사": KR_OEM, "미국": US_OEM, "중국": CN_OEM, "일본": JP_OEM}   # ②
 
-GREEN, NAVY, GOLD, RED = "#00A651", "#1B2E6B", "#C9A227", "#D62728"
+GREEN, NAVY, GOLD, RED = "#00A651", "#1B2E6B", idx.GROUP_COLORS["한국"], "#D62728"   # GOLD = DAOL 골드(#A68A64)
 GROUP_COLORS = {"한국 2사": GOLD, "미국": "#1F5FBF", "중국": RED, "일본": "#7F7F7F"}
 DASH = (0, (4, 2))
 # ③ 종목별 스타일 — CAT 노랑·Komatsu 파랑·Hitachi 주황(브랜드색), 중국은 빨강 계열(SANY 만 실선, 나머지 점선)
 BIG_STYLE = {
     "HD건설기계": dict(color=GREEN), "Caterpillar": dict(color="#E0A800"), "Komatsu": dict(color="#0057A8"),
-    "Hitachi CM": dict(color="#F39800"), "SANY": dict(color=RED),
+    "Hitachi CM": dict(color="#111111"), "SANY": dict(color=RED),
     "XCMG": dict(color="#B01C2E", ls=DASH), "Zoomlion": dict(color="#E8505B", ls=(0, (6, 2))),
     "LiuGong": dict(color="#8B0000", ls=(0, (1, 2))),
 }
 BIG = [HD, ("Caterpillar", "CAT"), ("Komatsu", "6301.T"), ("Hitachi CM", "6305.T"),
        ("SANY", "600031.SS"), ("XCMG", "000425.SZ"), ("Zoomlion", "1157.HK"), ("LiuGong", "000528.SZ")]
 # ④ 소형·농기계 — Deere 초록(브랜드), Kobelco 는 모회사 Kobe Steel(5406.T, 건설기계는 자회사) 회색, 대동 골드
-SMALL = [BOBCAT, ("Deere", "DE"), ("Kobelco(Kobe Steel)", "5406.T"), ("대동", "000490.KS")]
-SMALL_STYLE = {"두산밥캣": dict(color=NAVY), "Deere": dict(color="#367C2B"),
+SMALL = [BOBCAT, ("Deere", "DE"), ("CNH", "CNH"), ("Kobelco(Kobe Steel)", "5406.T"), ("대동", "000490.KS")]
+SMALL_STYLE = {"두산밥캣": dict(color=NAVY), "Deere": dict(color="#367C2B"), "CNH": dict(color="#C8102E"),
                "Kobelco(Kobe Steel)": dict(color="#7F7F7F"), "대동": dict(color=GOLD)}
 
 OUT_DIR = os.path.join(base._OUT_ROOT, "peer_price_construction")
@@ -117,7 +118,7 @@ def render(df, caps, out_dir, asof):
         lambda ax: chart1(ax, df, caps),
         lambda ax: chart2(ax, df, caps),
         lambda ax: lines(ax, df, BIG, BIG_STYLE, "대형 OEM — HD건설기계 · CAT · 일본 · 중국", 4),
-        lambda ax: lines(ax, df, SMALL, SMALL_STYLE, "소형·농기계 — 두산밥캣 · Deere · Kobelco · 대동", 4),
+        lambda ax: lines(ax, df, SMALL, SMALL_STYLE, "소형·농기계 — 두산밥캣 · Deere · CNH · Kobelco · 대동", 5),
     ]
     for fn, draw in zip(OUT_ONE, draws):
         fig, ax = plt.subplots(figsize=(idx.W_IN, idx.H_IN), dpi=base.DPI)
