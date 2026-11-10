@@ -83,8 +83,12 @@ Yahoo 는 그날 시점 값만 주므로 과거 이력은 없고, 적재를 시�
 
 - **종목**: CAT·Deere·CNH·URI / Komatsu·Hitachi CM·Kubota·Kobelco(=Kobe Steel 5406.T, 코벨코건기는 비상장)·Takeuchi /
   Volvo / SANY·XCMG
+- **조선 종목**: 한국 커버리지 9(HD한국조선해양·HD현대중공업·HD현대마린엔진·HD현대마린솔루션·삼성중공업·한화오션·한화엔진·
+  대한조선·한국카본) + Yangzijiang(BS6.SI)·CSSC(600150.SS)·Seatrium(5E2.SI)
+- **한국 커버리지**: 방산 5(한화에어로·한화시스템·KAI·LIG D&A·현대로템), 건기 2(두산밥캣·HD건설기계)도 각 섹터에 포함.
+  야후의 한국 종목 애널리스트 수는 실제보다 적게 잡히는 경우가 많다(두산밥캣 2·HD건설기계 3·한화시스템 4 등)
 - **방산 종목**(방산 INDEX ③ 과 동일): 미국 체계 LMT·RTX·NOC·GD·LHX·BA·HII / 유럽 체계 Rheinmetall·BAE·Thales·Leonardo·
-  Saab·Hensoldt·Renk·Kongsberg. 종목 수정은 `consensus/er_snapshot.py` 상단 `_CON`·`_DEF`, 결과는 `sector` 열로 구분
+  Saab·Hensoldt·Renk·Kongsberg. 종목 수정은 `consensus/er_snapshot.py` 상단 `_KR_*`·`_SHIP`·`_DEF`·`_CON`, 결과는 `sector` 열로 구분
 - **ER30** = (30일 EPS 상향 건수 − 하향 건수) / 애널리스트 수 × 100. 7일 기준 `er7` 도 같이 저장
 - **EPS 1M·3M 변화율**: 컨센 EPS 현재 vs 30·90일 전(Yahoo 제공) — 이력이 없어도 첫날부터 볼 수 있는 보조 지표
 - **출력**: `output/earnings_revision/er_history.csv`(누적, 키 = date·ticker·period, period 0y=FY1·+1y=FY2·0q/+1q=분기),
