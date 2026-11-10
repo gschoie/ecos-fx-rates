@@ -252,7 +252,7 @@ COLUMNS = [
     ("1W", "1W", 3.6),
     ("1M", "1M", 3.6),
     ("3M", "3M", 3.6),
-    ("spark", "주가 ({})", 6.6),
+    ("spark", "주가 ({})", 7.6),
     ("YTD", "YTD", 3.6),
     ("1Y", "1Y", 3.6),
 ]
@@ -270,7 +270,8 @@ GRID = "#A6A6A6"
 TEXT = "#000000"
 MUTED = "#595959"
 
-ROW_IN = 0.225         # 행 높이(inch) — 엑셀에 축소해 붙여도 글자가 읽히도록 크게
+COL_IN = 0.225         # 가로 단위(inch) — 열 폭(COLUMNS)의 1단위
+ROW_IN = 0.29          # 행 높이(inch) — 11/10 0.225→0.29: 스파크라인 흐름이 보이게(사용자). 가로는 COL_IN 으로 분리
 DPI = 220
 
 _OUT_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
@@ -547,7 +548,7 @@ def draw_section(ax, section, rows, caps, col_scale):
             vals = sp.values.astype(float)
             col = UP if vals[-1] >= vals[0] else DOWN
             sax.axhline(vals[0], color="#A0A0A0", lw=0.6, ls=(0, (2, 2)))
-            sax.plot(np.arange(len(vals)), vals, color=col, lw=1.4)
+            sax.plot(np.arange(len(vals)), vals, color=col, lw=1.7)
             sax.plot(len(vals) - 1, vals[-1], "o", ms=2.6, color=col)
             pad = (vals.max() - vals.min()) * 0.08 or 1
             sax.set_ylim(vals.min() - pad, vals.max() + pad)
@@ -586,7 +587,7 @@ def render_page(sections_rows, caps, scales, asof, path, layout=None, subtitle="
              for c, lst in cols.items()}
 
     margin, title_h, foot_h, mid_gap = 0.25, 0.0, 0.25, 0.3
-    tw = W_units * ROW_IN
+    tw = W_units * COL_IN
     fig_w = 2 * margin + 2 * tw + mid_gap
     fig_h = margin + title_h + max(col_h.values()) * ROW_IN + foot_h + margin
     fig = plt.figure(figsize=(fig_w, fig_h), dpi=DPI)
@@ -621,7 +622,7 @@ def save_fig(fig, path):
 def render_single(sec, rows, caps, scales, path):
     W_units = table_width_units()
     pad = 0.08
-    w = W_units * ROW_IN + 2 * pad
+    w = W_units * COL_IN + 2 * pad
     h = section_height_units(sec) * ROW_IN + 2 * pad
     fig = plt.figure(figsize=(w, h), dpi=DPI)
     ax = fig.add_axes([pad / w, pad / h, 1 - 2 * pad / w, 1 - 2 * pad / h])
