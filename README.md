@@ -9,7 +9,7 @@
 | 피어그룹 주가 | 매일 07:10 KST 자동 + Actions → "피어그룹 주가 엑셀" | [output/글로벌_주가_변동률_모니터링_최종.xlsx](output/글로벌_주가_변동률_모니터링_최종.xlsx) |
 | 피어그룹 주가 흐름·조선주 INDEX(이미지) | 위 워크플로가 같이 생성 | [output/peer_price/](output/peer_price/) |
 | 커버리지 컨센서스 추이(이미지) | Actions → "커버리지 컨센서스 추이 이미지" | [output/consensus/](output/consensus/) |
-| 건설기계 Earnings Revision 적재 | 매일 17:10 KST 자동 + Actions → "건설기계 Earnings Revision 적재" | [output/earnings_revision/](output/earnings_revision/) |
+| 건설기계·방산 Earnings Revision 적재 | 매일 17:10 KST 자동 + Actions → "건설기계·방산 Earnings Revision 적재" | [output/earnings_revision/](output/earnings_revision/) |
 
 ## ECOS 환율
 
@@ -76,13 +76,15 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 - **옵션**: `--months 12`(기간), `--since 2026-05-01`, `--mode quarter --periods 2026.12,2027.03`
 - **실행**: Actions → "커버리지 컨센서스 추이 이미지" (`.github/workflows/consensus-chart.yml`)
 
-## 건설기계 Earnings Revision 적재
+## 건설기계·방산 Earnings Revision 적재
 
 Bloomberg ER 차트를 무료 데이터로 흉내 내기 위해 Yahoo Finance 애널리스트 추정치를 **매일 한 번** 받아 쌓는다.
 Yahoo 는 그날 시점 값만 주므로 과거 이력은 없고, 적재를 시작한 날(2026-11-10)부터 시계열이 생긴다.
 
 - **종목**: CAT·Deere·CNH·URI / Komatsu·Hitachi CM·Kubota·Kobelco(=Kobe Steel 5406.T, 코벨코건기는 비상장)·Takeuchi /
-  Volvo / SANY·XCMG — `consensus/er_snapshot.py` 상단 `COMPANIES`
+  Volvo / SANY·XCMG
+- **방산 종목**(방산 INDEX ③ 과 동일): 미국 체계 LMT·RTX·NOC·GD·LHX·BA·HII / 유럽 체계 Rheinmetall·BAE·Thales·Leonardo·
+  Saab·Hensoldt·Renk·Kongsberg. 종목 수정은 `consensus/er_snapshot.py` 상단 `_CON`·`_DEF`, 결과는 `sector` 열로 구분
 - **ER30** = (30일 EPS 상향 건수 − 하향 건수) / 애널리스트 수 × 100. 7일 기준 `er7` 도 같이 저장
 - **EPS 1M·3M 변화율**: 컨센 EPS 현재 vs 30·90일 전(Yahoo 제공) — 이력이 없어도 첫날부터 볼 수 있는 보조 지표
 - **출력**: `output/earnings_revision/er_history.csv`(누적, 키 = date·ticker·period, period 0y=FY1·+1y=FY2·0q/+1q=분기),

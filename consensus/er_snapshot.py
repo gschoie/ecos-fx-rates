@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""건설기계 글로벌 피어 Earnings Revision(ER) 일별 스냅샷 적재.
+"""건설기계·방산 글로벌 피어 Earnings Revision(ER) 일별 스냅샷 적재.
 
 Yahoo Finance 의 애널리스트 추정치 페이지(yfinance)는 '오늘 시점'의 값만 준다.
   - eps_revisions     : 최근 7일/30일 EPS 상향·하향 건수
@@ -10,6 +10,7 @@ Yahoo Finance 의 애널리스트 추정치 페이지(yfinance)는 '오늘 시�
 출력 (output/earnings_revision/)
   - er_history.csv : 누적 원자료(long). 키 = (date, ticker, period). 같은 날 재실행 시 덮어쓴다.
   - er_latest.csv  : 오늘 요약(종목 1줄, FY1·FY2)
+  sector 열(건설기계/방산)로 그룹을 구분한다.
 
 ER 정의(Bloomberg 식과 같은 꼴):
   ER30 = (30일 상향 건수 − 30일 하향 건수) / 애널리스트 수 × 100   (−100 ~ +100)
@@ -19,7 +20,7 @@ ER 정의(Bloomberg 식과 같은 꼴):
 period: 0y = 이번 회계연도(FY1), +1y = 다음 회계연도(FY2). 일본 종목은 3월 결산 기준.
 
 실행: python consensus/er_snapshot.py
-종목은 아래 COMPANIES 만 고치면 된다. (지역, 표시명, 야후 티커)
+종목은 아래 COMPANIES 만 고치면 된다. (섹터, 지역, 표시명, 야후 티커)
 """
 
 import os
@@ -34,7 +35,7 @@ try:
 except Exception:
     pass
 
-COMPANIES = [
+_CON = [
     ("미국", "Caterpillar", "CAT"),
     ("미국", "Deere", "DE"),
     ("미국", "CNH Industrial", "CNH"),
@@ -48,6 +49,24 @@ COMPANIES = [
     ("중국", "SANY", "600031.SS"),
     ("중국", "XCMG", "000425.SZ"),
 ]
+_DEF = [  # 방산 INDEX ③ 의 미국 체계·유럽 체계와 같은 구성
+    ("미국", "Lockheed Martin", "LMT"),
+    ("미국", "RTX", "RTX"),
+    ("미국", "Northrop Grumman", "NOC"),
+    ("미국", "General Dynamics", "GD"),
+    ("미국", "L3Harris", "LHX"),
+    ("미국", "Boeing", "BA"),
+    ("미국", "Huntington Ingalls", "HII"),
+    ("유럽", "Rheinmetall", "RHM.DE"),
+    ("유럽", "BAE Systems", "BA.L"),
+    ("유럽", "Thales", "HO.PA"),
+    ("유럽", "Leonardo", "LDO.MI"),
+    ("유럽", "Saab", "SAAB-B.ST"),
+    ("유럽", "Hensoldt", "HAG.DE"),
+    ("유럽", "Renk", "R3NK.DE"),
+    ("유럽", "Kongsberg", "KOG.OL"),
+]
+COMPANIES = [("건설기계", *c) for c in _CON] + [("방산", *c) for c in _DEF]
 
 PERIODS = ["0q", "+1q", "0y", "+1y"]
 OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "output", "earnings_revision")
@@ -55,7 +74,7 @@ HIST = os.path.join(OUT_DIR, "er_history.csv")
 LATEST = os.path.join(OUT_DIR, "er_latest.csv")
 KST = timezone(timedelta(hours=9))
 
-COLS = ["date", "region", "name", "ticker", "period", "currency", "n_analysts",
+COLS = ["date", "sector", "region", "name", "ticker", "period", "currency", "n_analysts",
         "up7", "down7", "up30", "down30",
         "eps_cur", "eps_7d", "eps_30d", "eps_60d", "eps_90d", "er7", "er30", "eps_chg_1m", "eps_chg_3m"]
 
@@ -101,7 +120,7 @@ def fetch(ticker):
     raise RuntimeError(f"{ticker}: {last}")
 
 
-def rows_for(region, name, ticker, today):
+def rows_for(sector, region, name, ticker, today):
     rev, trend, est = fetch(ticker)
     out = []
     for p in PERIODS:
@@ -117,7 +136,7 @@ def rows_for(region, name, ticker, today):
         if all(v is None for v in (up30, dn30, cur)):
             continue
         out.append({
-            "date": today, "region": region, "name": name, "ticker": ticker, "period": p,
+            "date": today, "sector": sector, "region": region, "name": name, "ticker": ticker, "period": p,
             "currency": r.get("currency"), "n_analysts": n,
             "up7": up7, "down7": dn7, "up30": up30, "down30": dn30,
             "eps_cur": cur, "eps_7d": d7, "eps_30d": d30, "eps_60d": d60, "eps_90d": d90,
@@ -130,9 +149,11 @@ def rows_for(region, name, ticker, today):
 def main():
     today = datetime.now(KST).strftime("%Y-%m-%d")
     rows, failed = [], []
-    for region, name, ticker in COMPANIES:
+    for i, (sector, region, name, ticker) in enumerate(COMPANIES):
+        if i:
+            time.sleep(1)  # 야후 429(rate limit) 완화
         try:
-            r = rows_for(region, name, ticker, today)
+            r = rows_for(sector, region, name, ticker, today)
             rows += r
             print(f"OK   {ticker:<10} {name:<20} {len(r)}행")
         except Exception as e:
@@ -145,21 +166,23 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     if os.path.exists(HIST):
         old = pd.read_csv(HIST, dtype={"ticker": str})
+        if "sector" not in old.columns:  # sector 열 추가 이전(건설기계만 있던) 이력
+            old.insert(1, "sector", "건설기계")
         # 같은 날 재실행: 이번에 성공한 종목만 교체(실패 종목의 기존 값은 보존)
         done = set(new["ticker"])
         old = old[~((old["date"] == today) & old["ticker"].isin(done))]
-        hist = pd.concat([old, new], ignore_index=True)
+        hist = pd.concat([old, new], ignore_index=True)[COLS]
     else:
         hist = new
     hist = hist.sort_values(["date", "ticker", "period"]).reset_index(drop=True)
     hist.to_csv(HIST, index=False, encoding="utf-8-sig", float_format="%.6g")
 
     # 오늘 요약: 종목 1줄 × (FY1, FY2)
-    order = {t: i for i, (_, _, t) in enumerate(COMPANIES)}
+    order = {t: i for i, (*_, t) in enumerate(COMPANIES)}
     cur = hist[hist["date"] == today]
     wide = []
     for tkr, g in sorted(cur.groupby("ticker"), key=lambda x: order.get(x[0], 99)):
-        row = {"date": today, "region": g["region"].iat[0], "name": g["name"].iat[0], "ticker": tkr}
+        row = {"date": today, "sector": g["sector"].iat[0], "region": g["region"].iat[0], "name": g["name"].iat[0], "ticker": tkr}
         for p, lab in (("0y", "FY1"), ("+1y", "FY2")):
             s = g[g["period"] == p]
             for c in ("n_analysts", "up30", "down30", "er30", "eps_chg_1m", "eps_chg_3m"):

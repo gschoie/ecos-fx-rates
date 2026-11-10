@@ -1,9 +1,9 @@
-name: 건설기계 Earnings Revision 적재
+name: 건설기계·방산 Earnings Revision 적재
 
 # Yahoo Finance 애널리스트 추정(상향·하향 건수, 컨센 EPS 추이)을 매일 한 번 받아
 # output/earnings_revision/er_history.csv 에 누적한다. Yahoo 는 '오늘 값'만 주므로 하루라도 빠지면 그날은 비게 된다.
 #   - 매일 08:10 UTC(17:10 KST) 자동. 같은 날 재실행해도 그날 값만 덮어쓴다.
-#   - 수동: Actions → "건설기계 Earnings Revision 적재" → Run workflow
+#   - 수동: Actions → "건설기계·방산 Earnings Revision 적재" → Run workflow
 on:
   workflow_dispatch:
   schedule:
