@@ -9,7 +9,7 @@
 | 피어그룹 주가 | 매일 07:10 KST 자동 + Actions → "피어그룹 주가 엑셀" | [output/글로벌_주가_변동률_모니터링_최종.xlsx](output/글로벌_주가_변동률_모니터링_최종.xlsx) |
 | 피어그룹 주가 흐름·조선주 INDEX(이미지) | 위 워크플로가 같이 생성 | [output/peer_price/](output/peer_price/) |
 | 커버리지 컨센서스 추이(이미지) | Actions → "커버리지 컨센서스 추이 이미지" | [output/consensus/](output/consensus/) |
-| 조선·방산·건설기계 Earnings Revision 적재 | 매일 17:10 KST 자동 + Actions → "조선·방산·건설기계 Earnings Revision 적재" | [output/earnings_revision/](output/earnings_revision/) |
+| 조선·방산·건설기계 Earnings Revision 적재 | 평일 17:12 KST 자동(Claude 예약) + Actions → "조선·방산·건설기계 Earnings Revision 적재" | [output/earnings_revision/](output/earnings_revision/) |
 
 ## ECOS 환율
 
@@ -95,7 +95,7 @@ Yahoo 는 그날 시점 값만 주므로 과거 이력은 없고, 적재를 시�
   `er_latest.csv`(오늘 요약)
 - **주의**: 커버리지가 적은 종목(SANY·XCMG·Takeuchi 등 4~6명)은 1~2건 변경으로 ER이 크게 튄다. Yahoo 의 건수·애널리스트
   수는 Bloomberg 집계와 다르다. 하루 빠지면 그날 값은 복구할 수 없다
-- **실행**: `.github/workflows/earnings-revision.yml` (매일 17:10 KST + 수동)
+- **실행**: `.github/workflows/earnings-revision.yml` — 평일 17:12 KST Claude 예약 작업이 dispatch(정시), 크론 17:20 평일은 안전망 + 수동
 - **화면**: GS-DB2 대시보드 보고서.발간 › 주보 › 📐 ER › 조선/방산/건설기계 (`er_report.html?s=…`, 이 CSV 를 raw 로 읽음)
 
 ## 내력
