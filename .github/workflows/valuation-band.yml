@@ -1,0 +1,69 @@
+name: PER·PBR 밴드 차트
+
+# 업로드 엑셀(DataGuide·Bloomberg) + Yahoo → data/valuation/*.csv(DB) → output/valuation_band/*.png·svg
+#   - 평일 17:30 KST 자동(주가 갱신), 수동 실행, data/valuation/raw/ 에 새 엑셀이 푸시되면 즉시
+#   - ⚠️ data/valuation 에 유료 DB(DataGuide·Bloomberg) 값과 자체 추정치가 들어 있다 — 저장소는 비공개로 둘 것
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 8 * * 1-5"    # 17:30 KST 평일
+  push:
+    branches: [main]
+    paths:
+      - "data/valuation/raw/**"
+      - "valuation/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: valuation-band
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 한글 폰트 설치 (나눔고딕)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q fonts-nanum
+          rm -rf ~/.cache/matplotlib
+
+      - name: 패키지 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r peergroup/requirements.txt
+
+      - name: ① 업로드 엑셀 → DB (annual_uploads·multiples·prices_uploads)
+        run: python valuation/ingest_uploads.py
+
+      - name: ② Yahoo 연간 실적·컨센 (해외 USD, 한국 빈 해 채움)
+        run: python valuation/yahoo_fundamentals.py
+
+      - name: ③ 밴드 차트 (png/svg)
+        run: python valuation/band_chart.py
+
+      - name: 커밋 및 푸시
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/valuation output/valuation_band
+          if git diff --cached --quiet; then
+            echo "변경 없음 — 커밋 생략"
+          else
+            git commit -m "chore: PER·PBR 밴드 갱신 $(TZ=Asia/Seoul date +%Y-%m-%d\ %H:%M)"
+            for i in 1 2 3; do
+              git push origin HEAD:main && { echo "push 성공"; break; }
+              git pull --rebase --autostash origin main || exit 1
+              sleep 3
+            done
+          fi
