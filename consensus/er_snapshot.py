@@ -177,8 +177,21 @@ def rows_for(sector, region, name, ticker, today):
     return out
 
 
+def snapshot_date(now=None):
+    """적재 날짜 = 그 스냅샷이 속한 평일. KST 06시 이전 실행은 전날 것으로 본다 —
+    17:20 안전망 크론이 새벽 1~2시에 늦게 도착하면(11/13·11/14 실측) 다음 날짜로 찍혀
+    다음 날 정시 값을 미리 덮거나 토요일 칸이 생겼다. 주말이면 None(적재 안 함)."""
+    d = ((now or datetime.now(KST)) - timedelta(hours=6)).date()
+    return None if d.weekday() >= 5 else d.strftime("%Y-%m-%d")
+
+
 def main():
-    today = datetime.now(KST).strftime("%Y-%m-%d")
+    today = snapshot_date()
+    if today is None:
+        if not os.environ.get("ER_FORCE"):
+            print("주말 — 적재 생략(평일 값만 쌓는다). 강제로 받으려면 ER_FORCE=1")
+            return
+        today = datetime.now(KST).strftime("%Y-%m-%d")
     rows, failed = [], []
     for i, (sector, region, name, ticker) in enumerate(COMPANIES):
         if i:
