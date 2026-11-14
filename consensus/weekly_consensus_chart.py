@@ -101,9 +101,21 @@ CSV_FILES = {"quarter": "컨센서스_추이_분기.csv", "annual": "컨센서�
 # 폰트
 # =========================================================================
 def setup_font():
+    """보고서 서체 = 나눔스퀘어 Light. 러너는 fonts-nanum-extra(NanumSquareL.ttf)를 깔아
+    그림에 직접 박는다(보는 PC 폰트와 무관). 본문은 Light(300), 굵게 지정한 제목은 같은
+    가족의 Bold. Light 가 없는 환경은 종전 나눔고딕 등으로 폴백."""
+    fl = font_manager.fontManager.ttflist
+    have = {f.name for f in fl}
+    if any(f.name == "NanumSquare" and f.weight in (300, "light") for f in fl):
+        # 목록이면 글자 단위 폴백(matplotlib ≥3.6) — 나눔스퀘어에 없는 글자는 나눔고딕으로
+        plt.rcParams["font.family"] = ["NanumSquare"] + [n for n in ("NanumGothic",) if n in have]
+        plt.rcParams["font.weight"] = 300   # 숫자로 — "light" 는 findfont 경고가 줄줄이 난다
+        for k in ("axes.titleweight", "axes.labelweight", "figure.titleweight"):
+            plt.rcParams[k] = 300   # 기본값 normal(=Regular)이라 따로 내려준다; fontweight="bold" 지정분은 그대로 Bold
+        plt.rcParams["axes.unicode_minus"] = False
+        return
     wanted = ["Malgun Gothic", "NanumGothic", "NanumBarunGothic", "AppleGothic",
               "Noto Sans CJK KR", "Noto Sans KR", "WenQuanYi Zen Hei"]
-    have = {f.name for f in font_manager.fontManager.ttflist}
     for name in wanted:
         if name in have:
             plt.rcParams["font.family"] = name

@@ -30,7 +30,7 @@ jobs:
       - name: 한글 폰트 설치
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q fonts-nanum
+          sudo apt-get install -y -q fonts-nanum fonts-nanum-extra   # extra = 나눔스퀘어 Light
           rm -rf ~/.cache/matplotlib
 
       - name: 패키지 설치
