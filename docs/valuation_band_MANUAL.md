@@ -52,6 +52,7 @@ output/valuation_band/
 | `BB_건설기계_20261026.xlsx` | Bloomberg | `티커`, 기업별 밴드 시트(12월 행 = 그해 값) | 해외 13 + 한국 일부(한국은 DG 우선이라 건너뜀). **전부 USD**. 원본 BDH 시트는 `#NAME?` 라 밴드 시트 캐시값을 읽음. 올해 이후 = BEST(컨센) |
 
 `annual_uploads.csv` 의 `basis` 구분:
+- `band` = 다종목 파일의 기업별 밴드 시트 12월 행(엑셀 차트가 실제로 쓰는 값). 밴드에서 최우선. 22종목 전부 `model` 과 일치(검산용)
 - `actual` = DataGuide 실적(발표기준)
 - `model` = ☞추정입력 시트 값 — 과거는 **조정 실적**(예: HD한국조선해양 2017 분할 조정), 미래는 **사용자 자체 추정**
 - `consensus` = DataGuide 컨센(중앙값) / Bloomberg BEST
@@ -70,7 +71,7 @@ output/valuation_band/
 
 **연도별 값 우선순위** (같은 해에 여러 값이면 앞이 이김)
 ```
-업로드 model → 업로드 actual → 업로드 consensus → Yahoo actual → Yahoo consensus
+업로드 band → 업로드 model → 업로드 actual → 업로드 consensus → Yahoo actual → Yahoo consensus
 ```
 - 업로드 actual 중 올해 이후 값은 버림(DataGuide 가 진행 중 연도를 실적 칸에 채워 둔 경우).
 - 미래 BPS 가 없으면 `BPS(t) = BPS(t−1) + EPS(t) × (1 − 배당성향)`, 배당성향 없으면 30%.
@@ -97,7 +98,9 @@ output/valuation_band/
 ## 6. 자동화 상태 (2026-11-14 기준)
 
 - 워크플로 `valuation-band.yml`: 평일 17:30 KST 크론 + workflow_dispatch + `data/valuation/raw/**`·`valuation/**` 푸시.
-- 첫 실행(#28 머지 직후)은 `openpyxl` 미설치로 실패 → 워크플로 설치 줄에 `openpyxl` 추가로 수정.
+- 첫 실행(#28 머지 직후)은 `openpyxl` 미설치로 실패 → 워크플로 설치 줄에 `openpyxl` 추가(#29) 후 11/14 18:23 첫 성공.
+- GS-DB2 대시보드 「🦿 업무자동화 › 📊 피어그룹.Valuation」 바로 밑 **📉 PE·PB 밴드**(`valuation_band.html`)가 이 리포의
+  `output/valuation_band/` 를 raw 주소로 읽는다(종목 목록은 `band_inputs.csv` 에서 자동).
 - **16:44 KST 정시 예약 작업(「주보 ecos 3종 정시 발사」)에는 아직 안 들어감.** 예약 작업 내용은 그 작업이 결과를 올리는 대화에서만 고칠 수 있다. 그 대화에서
   `gh workflow run valuation-band.yml --repo gschoie/ecos-fx-rates --ref main` 를 4번째로 추가하면 된다. 그 전까지는 17:30 크론이 돌린다.
 
@@ -105,9 +108,12 @@ output/valuation_band/
 
 1. **공개 저장소 문제** — ecos-fx-rates 는 공개 저장소이고, `data/valuation/` 에 DataGuide·Bloomberg 값과 **사용자 자체 추정치(☞추정입력)** 가 올라가 있다(사용자 지시로 푸시). 한국 커버리지 차트의 밴드 선도 자체 추정 EPS·BPS × 배수라 역산 가능. 비공개 전환은 GitHub Settings → General → Danger Zone → Change visibility. 전환하면 기존 커밋 이력도 함께 비공개가 되지만, 이미 퍼진 사본은 회수되지 않는다.
 2. **비공개 전환 시 영향** — GS-DB2 대시보드 ER 화면(`er_report.html`)이 이 저장소 CSV 를 raw 주소로 읽으므로 끊긴다. Actions 무료 한도(월 2,000분)도 생긴다.
-3. **데이터 메모**
+3. **⚠️ `☞추정입력+컨센GET` 시트는 종목 열 순서가 `GET` 시트와 다르다**(8~28번째 종목). 11/14 첫 배포본은 GET 순서로 읽어
+   20종목의 추정입력·컨센이 옆 종목 것으로 들어갔다(두산밥캣 ← HD건설기계 값 등). 같은 날 수정 — 추정입력 시트 자신의 머리글
+   (3·4·5행)과 컨센 블록의 코드 줄(`CON` 윗줄)을 쓴다. 검산: `band` 와 `model` 의 EPS 가 22종목 모두 일치해야 한다.
+4. **데이터 메모**
    - 다종목 파일의 DataGuide 컨센 블록은 기간 설정이 2011~2026 이라 2027·2028E 컨센이 없다(추정입력은 2030까지).
-   - 추정입력이 오래된 종목: 현대로템·한국카본(~2023), 두산에너빌리티(~2023). KAI 는 컨센 없음.
+   - 추정입력·컨센 보유 범위는 종목마다 다르다 — 종목별 실제 사용 값·출처는 `band_inputs.csv` 로 확인.
    - HD현대중공업 2025 실적 EPS 가 파일마다 다름(15,702 vs 13,486, 주식수 기준 차이).
    - HD한국조선해양 2016~2017: DataGuide 실적 ≠ 추정입력(분할 조정). 밴드는 추정입력 사용.
    - 한국 비커버리지 일부(현대엘리베이터·하이록코리아·와이지-원·진성티이씨·신진에스엠)는 엑셀 밴드 시트 주가가 2019~2020 에서 끊겨 있음(밴드 대상 아님).

@@ -11,7 +11,7 @@
   output/valuation_band/band_inputs.csv            차트에 실제로 쓴 연도별 EPS·BPS·ROE 와 출처
 
 연도별 값 고르는 순서(같은 해에 여러 개면 앞이 이김)
-  업로드 model(☞추정입력) → 업로드 actual → 업로드 consensus → Yahoo actual → Yahoo consensus
+  업로드 band(기업별 밴드 시트) → 업로드 model(☞추정입력) → 업로드 actual → 업로드 consensus → Yahoo actual → Yahoo consensus
   BPS 가 없는 미래 연도는 BPS(t) = BPS(t-1) + EPS(t)×(1−배당성향) 로 채운다(배당성향 없으면 30%).
 밴드 선: 그해 1월부터 3개월에 걸쳐 전년 값 → 당해 값으로 이어지는 계단(엑셀 '계단' 열과 같은 방식).
 
@@ -37,7 +37,7 @@ from er_snapshot import COMPANIES  # noqa: E402
 
 DATA = os.path.join(ROOT, "data", "valuation")
 OUT = os.path.join(ROOT, "output", "valuation_band")
-PRIORITY = [("upload", "model"), ("upload", "actual"), ("upload", "consensus"),
+PRIORITY = [("upload", "band"), ("upload", "model"), ("upload", "actual"), ("upload", "consensus"),
             ("yahoo", "actual"), ("yahoo", "consensus")]
 PRICE_C = "#A68A64"                       # DAOL 골드 (피어그룹 차트와 같은 색)
 BAND_C = ["#4D4D4D", "#7A7A7A", "#9C9C9C", "#BDBDBD", "#D9D9D9"]   # 낮은 배수 → 진하게
