@@ -81,6 +81,7 @@ DPI = 220
 
 LINE1 = "#1E9BD7"   # 첫 번째 기간(파랑, 예: 4Q26)
 LINE2 = "#111111"   # 두 번째 기간(검정, 예: 1Q27)
+BAND = "#1E9BD7"    # 첫 번째 기간의 최고~최저 띠(선과 같은 색, 옅게)
 ARROW = "#E46C0A"   # 제목 앞 ▶
 GRID = "#D9D9D9"
 TEXT = "#222222"
@@ -151,7 +152,7 @@ def _get_json(url, referer):
 
 
 def _empty():
-    return pd.Series(dtype=float, index=pd.DatetimeIndex([]))
+    return pd.DataFrame(columns=["avg", "lo", "hi"], index=pd.DatetimeIndex([]), dtype=float)
 
 
 def fn_periods(code, freq):
@@ -178,9 +179,11 @@ def fn_series(code, freq, yymm, consol="C"):
     except Exception as e:
         print(f"  FnGuide 실패 {code} {yymm}: {e}")
         return _empty()
-    pts = {pd.to_datetime(r["TRD_DT"], format="%y/%m/%d"): r["VAL_AVG"]
+    pts = {pd.to_datetime(r["TRD_DT"], format="%y/%m/%d"): (r["VAL_AVG"], r.get("VAL_MIN"), r.get("VAL_MAX"))
            for r in rows if r.get("VAL_AVG") is not None}
-    return pd.Series(pts, dtype=float).sort_index() if pts else _empty()
+    if not pts:
+        return _empty()
+    return pd.DataFrame.from_dict(pts, orient="index", columns=["avg", "lo", "hi"]).astype(float).sort_index()
 
 
 def nv_series(code, freq, yymm):
@@ -195,9 +198,10 @@ def nv_series(code, freq, yymm):
         return _empty()
     if "영업이익" not in c.get("item_name", "영업이익"):
         return _empty()
-    s = pd.Series([v for v in c["avg"]], index=pd.to_datetime(c["categories"], format="%Y/%m/%d"),
-                  dtype=float)
-    return s[~s.index.duplicated(keep="last")].dropna().sort_index()
+    mm = c.get("min_max") or [[None, None]] * len(c["avg"])
+    s = pd.DataFrame({"avg": c["avg"], "lo": [m[0] for m in mm], "hi": [m[1] for m in mm]},
+                     index=pd.to_datetime(c["categories"], format="%Y/%m/%d")).astype(float)
+    return s[~s.index.duplicated(keep="last")].dropna(subset=["avg"]).sort_index()
 
 
 def fetch(kind, periods=None):
@@ -214,10 +218,10 @@ def fetch(kind, periods=None):
             nv = nv_series(code, freq, yymm)
             s = pd.concat([fn[fn.index < nv.index.min()] if len(nv) else fn, nv]).sort_index()
             s = s[~s.index.duplicated(keep="last")]
-            rows += [(d, code, p, v) for d, v in s.items()]
+            rows += [(d, code, p, r.avg, r.lo, r.hi) for d, r in s.iterrows()]
             time.sleep(0.15)
         print(f"  {name}: {len([r for r in rows if r[1] == code])}개 시점")
-    df = pd.DataFrame(rows, columns=["snapshot_date", "code", "period", "op_profit"])
+    df = pd.DataFrame(rows, columns=["snapshot_date", "code", "period", "op_profit", "op_min", "op_max"])
     return df, chosen or []
 
 
@@ -283,7 +287,8 @@ def draw_panel(ax, title, sec, data, periods, kind, xlim):
 
     has_any = False
     for i, (p, color) in enumerate(zip(periods, (LINE1, LINE2))):
-        s = data.get(p)
+        fr = data.get(p)
+        s = fr["op_profit"] if fr is not None else None
         label = period_label(p, kind)
         ly = 1.135 - i * 0.105
         ax.plot([0.15, 0.24], [ly, ly], transform=ax.transAxes, color=color,
@@ -294,6 +299,12 @@ def draw_panel(ax, title, sec, data, periods, kind, xlim):
             continue
         has_any = True
         s = s.dropna()
+        if i == 0:
+            # 첫 기간만 최고~최저 띠(사용자 선택 ①) — 두 기간 띠를 겹치면 읽히지 않는다
+            band = fr.loc[s.index, ["op_min", "op_max"]].dropna()
+            if len(band) > 1:
+                ax.fill_between(band.index, band["op_min"].values, band["op_max"].values,
+                                step="post", color=BAND, alpha=0.18, linewidth=0, zorder=1)
         ax.plot(s.index, s.values, color=color, linewidth=1.25, drawstyle="steps-post",
                 zorder=3 + (1 - i))
         ax.plot(s.index[-1], s.values[-1], "o", color=color, markersize=2.2, zorder=5)
@@ -323,7 +334,11 @@ def draw_panel(ax, title, sec, data, periods, kind, xlim):
                 color=MUTED, ha="center", va="center")
         return
 
-    vals = pd.concat([data[p].dropna() for p in periods if p in data])
+    # y 범위: 두 기간의 평균 + 첫 기간의 최고~최저 띠까지 들어오게
+    parts = [data[p]["op_profit"].dropna() for p in periods if p in data]
+    if periods and periods[0] in data:
+        parts += [data[periods[0]]["op_min"].dropna(), data[periods[0]]["op_max"].dropna()]
+    vals = pd.concat(parts)
     lo, hi = vals.min(), vals.max()
     pad = max((hi - lo) * 0.18, abs(hi) * 0.06, 1)
     ymin = lo - pad
@@ -381,7 +396,7 @@ def render(df, kind, periods, since, path, asof):
                 (PANEL_H_IN - T - B) / fig_h,
             ])
             sub = df[df.code == code]
-            data = {p: sub[sub.period == p].set_index("snapshot_date")["op_profit"].sort_index()
+            data = {p: sub[sub.period == p].set_index("snapshot_date")[["op_profit", "op_min", "op_max"]].sort_index()
                     for p in periods}
             draw_panel(ax, name, sec, data, periods, kind, xlim)
 
@@ -389,7 +404,8 @@ def render(df, kind, periods, since, path, asof):
     what = "분기" if kind == "quarter" else "연간"
     fig.text(0.1 / fig_w, 0.30 / fig_h,
              f"주: {what} 영업이익 컨센서스({labels}) 평균 추이, 최근 {round((asof - since).days / 30.4)}개월. "
-             f"OP=영업이익, 범례 숫자는 최신 컨센(억원), 오른쪽 Δ1M은 1개월 전 대비 변화율",
+             f"OP=영업이익, 범례 숫자는 최신 컨센(억원), 오른쪽 Δ1M은 1개월 전 대비 변화율. "
+             f"옅은 띠는 {period_label(periods[0], kind)} 컨센의 최고~최저 범위",
              fontsize=6, color=MUTED, ha="left", va="center")
     fig.text(0.1 / fig_w, 0.13 / fig_h,
              f"자료: FnGuide, 네이버증권(WiseReport) · 기준일 {asof:%Y-%m-%d}",
