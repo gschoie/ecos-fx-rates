@@ -9,6 +9,7 @@
 | 피어그룹 주가 | 매일 07:10 KST 자동 + Actions → "피어그룹 주가 엑셀" | [output/글로벌_주가_변동률_모니터링_최종.xlsx](output/글로벌_주가_변동률_모니터링_최종.xlsx) |
 | 피어그룹 주가 흐름·조선주 INDEX(이미지) | 위 워크플로가 같이 생성 | [output/peer_price/](output/peer_price/) |
 | 커버리지 컨센서스 추이(이미지) | Actions → "커버리지 컨센서스 추이 이미지" | [output/consensus/](output/consensus/) |
+| PER·PBR 밴드 차트(이미지) | 평일 17:30 KST 자동 + Actions → "PER·PBR 밴드 차트" | [output/valuation_band/](output/valuation_band/) |
 | 조선·방산·건설기계 Earnings Revision 적재 | 평일 16:44 KST 자동(Claude 예약) + Actions → "조선·방산·건설기계 Earnings Revision 적재" | [output/earnings_revision/](output/earnings_revision/) |
 
 ## ECOS 환율
@@ -75,6 +76,25 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
 - **종목·순서·섹터**: `consensus/weekly_consensus_chart.py` 상단 `COMPANIES` (섹터, 표시명, 종목코드)
 - **옵션**: `--months 12`(기간), `--since 2026-05-01`, `--mode quarter --periods 2026.12,2027.03`
 - **실행**: Actions → "커버리지 컨센서스 추이 이미지" (`.github/workflows/consensus-chart.yml`)
+
+## PER·PBR 밴드 차트 (이미지)
+
+조선·방산·건설기계 46종목(ER 적재 종목과 동일, `consensus/er_snapshot.py` 의 `COMPANIES`)의 PER 밴드 + PBR 밴드(ROE 음영) 그림.
+한국은 원화(천원), 해외는 USD.
+
+- **DB**(`data/valuation/`) — ⚠️ DataGuide·Bloomberg 값과 자체 추정치가 들어 있으니 저장소는 비공개로 둘 것
+  - `raw/` : 업로드한 밴드 엑셀 원본. 파일명 `DG_<이름>_YYYYMMDD.xlsx`(DataGuide) / `BB_<이름>_YYYYMMDD.xlsx`(Bloomberg).
+    새 파일을 넣고 푸시하면 워크플로가 바로 다시 만든다(같은 종목·연도는 날짜가 최신인 파일이 이김)
+  - `annual_uploads.csv` : 연간 EPS·BPS·ROE (basis = actual 실적 / model ☞추정입력 / consensus 컨센) ← `valuation/ingest_uploads.py`
+  - `annual_yahoo.csv` : Yahoo 실적(약 4년)·FY1·FY2 컨센 EPS. 해외는 USD 환산(실적=결산일 환율, 컨센=오늘 환율) ← `valuation/yahoo_fundamentals.py`
+  - `multiples.csv` : 엑셀에서 쓰던 밴드 배수(PER·PBR 5개씩). 없는 종목은 과거 배수 분포(5·25·50·75·95%)로 자동
+  - `prices_uploads.csv` : 한국 일간 수정주가(DataGuide). 그 뒤는 Yahoo 로 이어 붙인다
+- **연도별 값 우선순위**: 업로드 model → 업로드 actual → 업로드 consensus → Yahoo actual → Yahoo consensus.
+  미래 BPS 가 없으면 `BPS(t−1) + EPS(t)×(1−배당성향)`. 실제로 쓴 값·출처는 `output/valuation_band/band_inputs.csv`
+- **밴드 선**: 그해 EPS(BPS)×배수, 1~3월에 걸쳐 전년 값에서 넘어가는 계단(엑셀 '계단' 열과 같은 방식). 2019년~올해+2(FY3)
+- **Yahoo 만 있는 종목**(해외 방산 15·해외 조선 3·Kobelco·Volvo)은 2022년부터, FY2(내년)까지만 그려진다
+- **실행**: `.github/workflows/valuation-band.yml` — 평일 17:30 KST + 수동 + `data/valuation/raw/` 푸시 시.
+  로컬: `python valuation/band_chart.py --only 079550.KS,CAT`
 
 ## 조선·방산·건설기계 Earnings Revision 적재
 
