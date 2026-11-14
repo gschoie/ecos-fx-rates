@@ -291,6 +291,10 @@ def draw_panel(ax, title, sec, data, periods, kind, xlim):
         s = fr["op_profit"] if fr is not None else None
         label = period_label(p, kind)
         ly = 1.135 - i * 0.105
+        if i == 0:
+            # 범례 선 뒤에 띠 견본 — 그림의 옅은 띠가 이 기간의 최고~최저임을 범례에서 바로 읽히게
+            ax.add_patch(Rectangle((0.15, ly - 0.034), 0.09, 0.068, transform=ax.transAxes,
+                                   facecolor=BAND, alpha=0.18, edgecolor="none", clip_on=False))
         ax.plot([0.15, 0.24], [ly, ly], transform=ax.transAxes, color=color,
                 linewidth=1.3, clip_on=False, solid_capstyle="butt")
         if s is None or s.dropna().empty:
@@ -310,6 +314,10 @@ def draw_panel(ax, title, sec, data, periods, kind, xlim):
         ax.plot(s.index[-1], s.values[-1], "o", color=color, markersize=2.2, zorder=5)
         ax.text(0.27, ly, f"{label} OP", transform=ax.transAxes,
                 fontsize=5.6, color=TEXT, va="center", ha="left")
+        if i == 0:
+            # 힌트는 '(억원)' 바로 밑 왼쪽 여백 — 라벨 옆은 큰 숫자(14,669)와 겹친다
+            ax.text(-0.03, ly - 0.105, "띠=최고~최저", transform=ax.transAxes,
+                    fontsize=4.2, color=MUTED, va="center", ha="right")
         ax.text(0.66, ly, f"{s.iloc[-1]:,.0f}", transform=ax.transAxes,
                 fontsize=5.6, color=TEXT, va="center", ha="right", fontweight="bold")
         chg, ccol = change_text(s)
