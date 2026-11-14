@@ -1,10 +1,16 @@
 name: PER·PBR 밴드 차트
 
 # 업로드 엑셀(DataGuide·Bloomberg) + Yahoo → data/valuation/*.csv(DB) → output/valuation_band/*.png·svg
-#   - 평일 17:30 KST 자동(주가 갱신), 수동 실행, data/valuation/raw/ 에 새 엑셀이 푸시되면 즉시
+#   - '피어그룹 주가 엑셀' 워크플로가 끝나면 바로 이어서 돈다(workflow_run) — 평일 16:44 KST Claude 예약(ecos 3종 정시 발사)이
+#     피어그룹을 쏘므로 밴드도 그 시각대에 같이 갱신된다. 그 예약의 프롬프트는 묶인 세션에서만 고칠 수 있어 이 방식으로 붙였다.
+#     (피어그룹의 16:40 안전망 크론·대시보드 🔄 버튼으로 돌 때도 따라 돈다 — 같은 날 다시 돌아도 결과는 같다)
+#   - 평일 17:30 KST 크론(안전망), 수동 실행, data/valuation/raw/ 에 새 엑셀이 푸시되면 즉시
 #   - ⚠️ data/valuation 에 유료 DB(DataGuide·Bloomberg) 값과 자체 추정치가 들어 있다 — 저장소는 비공개로 둘 것
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["피어그룹 주가 엑셀"]
+    types: [completed]
   schedule:
     - cron: "30 8 * * 1-5"    # 17:30 KST 평일
   push:

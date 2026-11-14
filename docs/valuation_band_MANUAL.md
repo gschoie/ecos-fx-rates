@@ -101,8 +101,8 @@ output/valuation_band/
 - 첫 실행(#28 머지 직후)은 `openpyxl` 미설치로 실패 → 워크플로 설치 줄에 `openpyxl` 추가(#29) 후 11/14 18:23 첫 성공.
 - GS-DB2 대시보드 「🦿 업무자동화 › 📊 피어그룹.Valuation」 바로 밑 **📉 PE·PB 밴드**(`valuation_band.html`)가 이 리포의
   `output/valuation_band/` 를 raw 주소로 읽는다(종목 목록은 `band_inputs.csv` 에서 자동).
-- **16:44 KST 정시 예약 작업(「주보 ecos 3종 정시 발사」)에는 아직 안 들어감.** 예약 작업 내용은 그 작업이 결과를 올리는 대화에서만 고칠 수 있다. 그 대화에서
-  `gh workflow run valuation-band.yml --repo gschoie/ecos-fx-rates --ref main` 를 4번째로 추가하면 된다. 그 전까지는 17:30 크론이 돌린다.
+- **16:44 KST 정시 예약과의 연결**: 예약 프롬프트는 그 예약이 묶인 세션에서만 고칠 수 있어, 워크플로에 `workflow_run`
+  (피어그룹 주가 엑셀 completed)을 달았다 — 예약이 피어그룹을 쏘면 끝나는 즉시 밴드가 이어서 돈다. 17:30 크론은 안전망.
 
 ## 7. 주의할 점
 
