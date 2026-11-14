@@ -255,8 +255,8 @@ def change_text(s):
         return None, None
     pct = (v / b - 1) * 100 if b > 0 else -(v / b - 1) * 100
     if abs(pct) < 0.05:
-        return "0.0%", MUTED
-    return f"{pct:+.1f}%", (UP if pct > 0 else DOWN)
+        return "Δ1M 0.0%", MUTED
+    return f"Δ1M {pct:+.1f}%", (UP if pct > 0 else DOWN)
 
 
 def draw_panel(ax, title, sec, data, periods, kind, xlim):
@@ -286,10 +286,10 @@ def draw_panel(ax, title, sec, data, periods, kind, xlim):
         s = data.get(p)
         label = period_label(p, kind)
         ly = 1.135 - i * 0.105
-        ax.plot([0.20, 0.30], [ly, ly], transform=ax.transAxes, color=color,
+        ax.plot([0.15, 0.24], [ly, ly], transform=ax.transAxes, color=color,
                 linewidth=1.3, clip_on=False, solid_capstyle="butt")
         if s is None or s.dropna().empty:
-            ax.text(0.33, ly, f"{label} OP  n/a", transform=ax.transAxes,
+            ax.text(0.27, ly, f"{label} OP  n/a", transform=ax.transAxes,
                     fontsize=5.6, color=MUTED, va="center", ha="left")
             continue
         has_any = True
@@ -297,9 +297,9 @@ def draw_panel(ax, title, sec, data, periods, kind, xlim):
         ax.plot(s.index, s.values, color=color, linewidth=1.25, drawstyle="steps-post",
                 zorder=3 + (1 - i))
         ax.plot(s.index[-1], s.values[-1], "o", color=color, markersize=2.2, zorder=5)
-        ax.text(0.33, ly, f"{label} OP", transform=ax.transAxes,
+        ax.text(0.27, ly, f"{label} OP", transform=ax.transAxes,
                 fontsize=5.6, color=TEXT, va="center", ha="left")
-        ax.text(0.76, ly, f"{s.iloc[-1]:,.0f}", transform=ax.transAxes,
+        ax.text(0.66, ly, f"{s.iloc[-1]:,.0f}", transform=ax.transAxes,
                 fontsize=5.6, color=TEXT, va="center", ha="right", fontweight="bold")
         chg, ccol = change_text(s)
         if chg:
@@ -389,7 +389,7 @@ def render(df, kind, periods, since, path, asof):
     what = "분기" if kind == "quarter" else "연간"
     fig.text(0.1 / fig_w, 0.30 / fig_h,
              f"주: {what} 영업이익 컨센서스({labels}) 평균 추이, 최근 {round((asof - since).days / 30.4)}개월. "
-             f"OP=영업이익, 범례 숫자는 최신 컨센(억원), 오른쪽 %는 1개월 전 대비 변화율",
+             f"OP=영업이익, 범례 숫자는 최신 컨센(억원), 오른쪽 Δ1M은 1개월 전 대비 변화율",
              fontsize=6, color=MUTED, ha="left", va="center")
     fig.text(0.1 / fig_w, 0.13 / fig_h,
              f"자료: FnGuide, 네이버증권(WiseReport) · 기준일 {asof:%Y-%m-%d}",
