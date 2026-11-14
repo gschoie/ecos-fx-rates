@@ -52,14 +52,8 @@ jobs:
       - name: ③ 밴드 차트 (png/svg)
         run: python valuation/band_chart.py
 
-      - name: 커밋 및 푸시 (저장소가 비공개일 때만 — 유료 DB 값·자체 추정치 보호)
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: 커밋 및 푸시
         run: |
-          if [ "$(gh api repos/${{ github.repository }} -q .private)" != "true" ]; then
-            echo "::warning::저장소가 공개 상태라 data/valuation·output/valuation_band 커밋을 건너뜀 (비공개 전환 후 자동으로 커밋됨)"
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/valuation output/valuation_band
