@@ -7,10 +7,11 @@
   data/valuation/multiples.csv       엑셀에서 쓰던 배수(없으면 과거 분포로 자동)
   data/valuation/prices_uploads.csv  한국 일간 수정주가(DataGuide) — 그 뒤는 Yahoo 로 이어 붙임
 출력
-  output/valuation_band/<섹터>_<종목>.png / .svg   (위 PER 밴드, 아래 PBR 밴드 + ROE)
+  output/valuation_band/<섹터>_<종목>_PER.png/.svg · _PBR.png/.svg   (PER 밴드 / PBR 밴드 + ROE, 따로)
   output/valuation_band/band_inputs.csv            차트에 실제로 쓴 연도별 EPS·BPS·ROE 와 출처
 
 연도별 값 고르는 순서(같은 해에 여러 개면 앞이 이김)
+  ★ 내 모델(data/valuation/my_model/<티커>.csv — 대시보드 입력, set_model.py) →
   업로드 band(기업별 밴드 시트) → 업로드 model(☞추정입력) → 업로드 actual → 업로드 consensus → Yahoo actual → Yahoo consensus
   BPS 가 없는 미래 연도는 BPS(t) = BPS(t-1) + EPS(t)×(1−배당성향) 로 채운다(배당성향 없으면 30%).
 밴드 선: 그해 1월부터 3개월에 걸쳐 전년 값 → 당해 값으로 이어지는 계단(엑셀 '계단' 열과 같은 방식).
@@ -37,7 +38,7 @@ from er_snapshot import COMPANIES  # noqa: E402
 
 DATA = os.path.join(ROOT, "data", "valuation")
 OUT = os.path.join(ROOT, "output", "valuation_band")
-PRIORITY = [("upload", "band"), ("upload", "model"), ("upload", "actual"), ("upload", "consensus"),
+PRIORITY = [("my", "model"), ("upload", "band"), ("upload", "model"), ("upload", "actual"), ("upload", "consensus"),
             ("yahoo", "actual"), ("yahoo", "consensus")]
 PRICE_C = "#A68A64"                       # DAOL 골드 (피어그룹 차트와 같은 색)
 BAND_C = ["#4D4D4D", "#7A7A7A", "#9C9C9C", "#BDBDBD", "#D9D9D9"]   # 낮은 배수 → 진하게
@@ -64,6 +65,13 @@ def load_annual():
         y = pd.read_csv(yp)
         y["src"] = "yahoo"
         frames.append(y)
+    md = os.path.join(DATA, "my_model")                     # 대시보드에서 넣은 내 모델(종목별 파일) — 최우선
+    if os.path.isdir(md):
+        for f in sorted(os.listdir(md)):
+            if f.endswith(".csv"):
+                m = pd.read_csv(os.path.join(md, f))
+                m["src"], m["basis"] = "my", "model"
+                frames.append(m)
     a = pd.concat(frames, ignore_index=True)
     a["rank"] = a.apply(lambda r: PRIORITY.index((r.src, r.basis)) if (r.src, r.basis) in PRIORITY else 99, axis=1)
     return a
@@ -172,6 +180,16 @@ def label_x(v):
     return f"{v:g}x"
 
 
+def mark_last(ax, px, scale, ccy):
+    """마지막 종가에 점 + '종가 MM/DD 값' 라벨(눈에 띄게)."""
+    d, v = px.index[-1], float(px.iloc[-1])
+    ax.scatter([d], [v / scale], s=28, color=PRICE_C, edgecolor="white", linewidth=0.8, zorder=5)
+    val = f"{v:,.0f}원" if ccy == "KRW" else f"${v:,.2f}"
+    ax.text(0.015, 0.97, f"종가 {d:%Y-%m-%d}  {val}", transform=ax.transAxes, ha="left", va="top",
+            fontsize=9.5, fontweight="bold", color="#7A5C2E",
+            bbox=dict(boxstyle="round,pad=0.3", fc="#FBF6EC", ec=PRICE_C, lw=0.8), zorder=6)
+
+
 def draw(ax, px, base, mults, title, unit, scale, end, roe=None):
     base = base.where(base > 0)                           # 적자 연도는 밴드 선을 끊는다
     for j, k in enumerate(mults):
@@ -202,7 +220,7 @@ def draw(ax, px, base, mults, title, unit, scale, end, roe=None):
         ax2.set_ylim(0, max(10, np.nanmax(roe.values) * 1.6) if roe.notna().any() else 30)
         ax2.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}%"))
         ax2.tick_params(labelsize=9)
-        ax2.text(1.0, 1.08, "(ROE %)", transform=ax2.transAxes, fontsize=9, ha="right", va="bottom", color="#777")
+        ax2.text(1.0, 1.02, "(ROE %)", transform=ax2.transAxes, fontsize=9, ha="right", va="bottom", color="#777")
         ax.set_zorder(ax2.get_zorder() + 1)
         ax.patch.set_visible(False)
         for s in ("top",):
@@ -230,7 +248,7 @@ def main():
         try:
             v, src = pick(a, tk, this_year)
             v, src = fill_bps(v, src, pay.get(tk))
-            v = v[(v.index >= args.start - 1) & (v.index <= this_year + 2)]
+            v = v[(v.index >= args.start - 1) & (v.index <= this_year + 4)]   # 기록은 올해+4(내 모델 입력 범위)까지
             src = src.reindex(v.index)
             if v.EPS.dropna().empty:
                 skipped.append(f"{name}(EPS 없음)")
@@ -250,36 +268,42 @@ def main():
             per_k = per_k or auto_mults(px, eps_m) or [5, 10, 15, 20, 25]
             pbr_k = pbr_k or auto_mults(px, bps_m) or [0.5, 1, 1.5, 2, 3]
             scale, unit = (1000, "(천원)") if ccy == "KRW" and px.max() >= 10000 else (1, f"({ccy})")
-            fig, (a1, a2) = plt.subplots(2, 1, figsize=(5.2, 6.6), dpi=150)
-            draw(a1, px, eps_m, per_k, f"{name} PER Band", unit, scale, end)
-            draw(a2, px, bps_m, pbr_k, f"{name} PBR Band", unit, scale, end, roe=roe_m)
             used = set(src[["EPS", "BPS"]].stack().dropna())
             names_ = []
+            if any(u.startswith("my") for u in used):
+                names_.append("내 모델")
             if any(u.startswith("upload") for u in used):
                 names_.append("DataGuide" if ccy == "KRW" else "Bloomberg")
             if any(u.startswith("yahoo") for u in used):
                 names_.append("Yahoo")
-            fig.text(0.01, 0.005, f"자료: {'·'.join(names_)} · 주가 "
-                     f"{px.index[-1]:%Y-%m-%d} · 밴드 기준 연도별 EPS·BPS(올해 이후 추정)",
-                     fontsize=7, color="#888")
-            fig.tight_layout(rect=(0, 0.02, 1, 1))
+            foot = (f"자료: {'·'.join(names_)} · 종가 {px.index[-1]:%Y-%m-%d} · "
+                    f"밴드 = 연도별 {{}}×배수(올해 이후 추정)")
             fn = f"{sector}_{name}".replace("/", "_").replace(" ", "")
-            for ext in ("png", "svg"):
-                fig.savefig(os.path.join(OUT, f"{fn}.{ext}"), bbox_inches="tight")
-            plt.close(fig)
+            # PER · PBR 을 따로 저장 — 보고서에 하나씩 붙일 수 있게(<파일>_PER / _PBR)
+            for kind, base_m, ks, roe_ in (("PER", eps_m, per_k, None), ("PBR", bps_m, pbr_k, roe_m)):
+                fig, ax = plt.subplots(figsize=(5.2, 3.5), dpi=150)
+                draw(ax, px, base_m, ks, f"{name} {kind} Band", unit, scale, end, roe=roe_)
+                mark_last(ax, px, scale, ccy)
+                fig.text(0.01, 0.005, foot.format("EPS" if kind == "PER" else "BPS"), fontsize=7, color="#888")
+                fig.tight_layout(rect=(0, 0.03, 1, 1))
+                for ext in ("png", "svg"):
+                    fig.savefig(os.path.join(OUT, f"{fn}_{kind}.{ext}"), bbox_inches="tight")
+                plt.close(fig)
             for fy in v.index:
                 log.append(dict(sector=sector, name=name, ticker=tk, ccy=ccy, fy=fy,
                                 EPS=v.at[fy, "EPS"], EPS_src=src.at[fy, "EPS"],
                                 BPS=v.at[fy, "BPS"], BPS_src=src.at[fy, "BPS"],
                                 ROE=v.at[fy, "ROE"], ROE_src=src.at[fy, "ROE"],
                                 per_mults=" ".join(f"{k:g}" for k in per_k),
-                                pbr_mults=" ".join(f"{k:g}" for k in pbr_k)))
+                                pbr_mults=" ".join(f"{k:g}" for k in pbr_k),
+                                px_date=f"{px.index[-1]:%Y-%m-%d}", px_last=round(float(px.iloc[-1]), 2),
+                                chart_end=end))
             done += 1
             print(f"OK   {tk:<10} {name:<20} {ccy} FY{int(v.index.min())}~{end}")
         except Exception as ex:
             skipped.append(f"{name}({ex})")
             print(f"FAIL {tk:<10} {name:<20} {ex}")
-    if log:
+    if log and not only:                                  # --only 시험 실행은 전체 기록을 덮어쓰지 않는다
         pd.DataFrame(log).to_csv(os.path.join(OUT, "band_inputs.csv"), index=False, encoding="utf-8-sig")
     print(f"\n완료 {done}종목" + (f" / 건너뜀: {', '.join(skipped)}" if skipped else ""))
 
