@@ -89,9 +89,12 @@ ECOS(한국은행 경제통계시스템) 주요국 환율(통계코드 731Y001)�
   - `annual_yahoo.csv` : Yahoo 실적(약 4년)·FY1·FY2 컨센 EPS. 해외는 USD 환산(실적=결산일 환율, 컨센=오늘 환율) ← `valuation/yahoo_fundamentals.py`
   - `multiples.csv` : 엑셀에서 쓰던 밴드 배수(PER·PBR 5개씩). 없는 종목은 과거 배수 분포(5·25·50·75·95%)로 자동
   - `prices_uploads.csv` : 한국 일간 수정주가(DataGuide). 그 뒤는 Yahoo 로 이어 붙인다
-- **연도별 값 우선순위**: 업로드 model → 업로드 actual → 업로드 consensus → Yahoo actual → Yahoo consensus.
+- **연도별 값 우선순위**: 내 모델 → 업로드 band → 업로드 model → 업로드 actual → 업로드 consensus → Yahoo actual → Yahoo consensus.
   미래 BPS 가 없으면 `BPS(t−1) + EPS(t)×(1−배당성향)`. 실제로 쓴 값·출처는 `output/valuation_band/band_inputs.csv`
 - **밴드 선**: 그해 EPS(BPS)×배수, 1~3월에 걸쳐 전년 값에서 넘어가는 계단(엑셀 '계단' 열과 같은 방식). 2019년~올해+2(FY3)
+- **그림**: 종목당 2장 — `<섹터>_<종목>_PER` · `_PBR`(.png/.svg). 왼쪽 위에 `종가 날짜 값` 딱지
+- **✏️ 내 모델**: 대시보드에서 올해~올해+4 EPS·BPS·ROE 를 붙여넣으면 `valuation-model.yml` 이 `data/valuation/my_model/<티커>.csv`
+  로 저장하고 밴드를 다시 그린다. 우선순위 내 모델 → 업로드 엑셀 모델 → 컨센서스 (`valuation/set_model.py`)
 - **Yahoo 만 있는 종목**(해외 방산 15·해외 조선 3·Kobelco·Volvo)은 2022년부터, FY2(내년)까지만 그려진다
 - **실행**: `.github/workflows/valuation-band.yml` — **피어그룹 주가 워크플로가 끝나면 이어서**(평일 16:44 KST 정시 예약이 피어그룹을 쏘면 밴드도 따라 돈다) + 평일 17:30 KST 크론(안전망) + 수동 + `data/valuation/raw/` 푸시 시.
   로컬: `python valuation/band_chart.py --only 079550.KS,CAT`

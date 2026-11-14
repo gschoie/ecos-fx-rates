@@ -1,0 +1,64 @@
+name: PER·PBR 밴드 — 내 모델 입력
+
+# 대시보드 「📉 PE·PB 밴드」의 ✏️ 내 모델 → GAS dispatch_proxy(valmodel) → 여기.
+# 넣은 추정치(올해~올해+4 EPS·BPS·ROE)를 data/valuation/my_model/<티커>.csv 로 저장하고 밴드 워크플로를 쏜다.
+#   - 종목별 파일이라 연달아 넣어도 충돌하지 않는다. concurrency 는 걸지 않는다(대기 run 이 취소돼 입력이 유실되므로).
+#   - 입력은 env 로만 넘긴다(셸 주입 방지). 검증은 valuation/set_model.py.
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: "야후 티커 (예: 079550.KS)"
+        required: true
+      model:
+        description: "fy,item,value;… (EPS|BPS|ROE). 비우거나 CLEAR = 삭제"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: write    # 끝나고 valuation-band.yml 발사
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 패키지 설치
+        run: pip install pandas
+
+      - name: 내 모델 저장
+        env:
+          TICKER: ${{ inputs.ticker }}
+          MODEL: ${{ inputs.model }}
+        run: python valuation/set_model.py
+
+      - name: 커밋 및 푸시
+        env:
+          TICKER: ${{ inputs.ticker }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A data/valuation/my_model
+          if git diff --cached --quiet; then
+            echo "변경 없음 — 커밋 생략"
+          else
+            git commit -m "chore: 밴드 내 모델 입력 $TICKER $(TZ=Asia/Seoul date +%Y-%m-%d\ %H:%M)"
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:main && { echo "push 성공"; break; }
+              git pull --rebase --autostash origin main || exit 1
+              sleep 3
+            done
+          fi
+
+      - name: 밴드 다시 그리기 발사
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run valuation-band.yml --repo "${{ github.repository }}" --ref main

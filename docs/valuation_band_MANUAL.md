@@ -9,7 +9,7 @@ GS-DB2 대시보드 「📊 피어그룹.Valuation」 메뉴 밑으로 옮기기
 
 | 항목 | 내용 |
 |---|---|
-| 결과물 | 종목별 PNG·SVG 1장 = 위 **PER 밴드**, 아래 **PBR 밴드 + ROE 음영**(오른쪽 축) |
+| 결과물 | 종목별 PNG·SVG **2장** = `_PER`(PER 밴드) · `_PBR`(PBR 밴드 + ROE 음영, 오른쪽 축). 그림 왼쪽 위에 `종가 날짜 값` 딱지 |
 | 종목 | 46개 = ER 적재 종목과 동일 (`consensus/er_snapshot.py` 의 `COMPANIES`) — 조선 12·방산 20·건설기계 14 |
 | 통화 | 한국 = 원화(천원 단위 축), 해외 = **USD** |
 | 기간 | 2019년 ~ 올해+2(FY3, 지금은 2028E). Yahoo 만 있는 종목은 2022 ~ FY2(2027E) |
@@ -23,6 +23,7 @@ valuation/
   ingest_uploads.py      ① 업로드 엑셀 → DB(csv)
   yahoo_fundamentals.py  ② Yahoo 연간 실적·컨센 → DB(csv)
   band_chart.py          ③ DB + 주가 → 밴드 차트
+  set_model.py           ✏️ 대시보드에서 넣은 내 모델 저장 (valuation-model.yml 이 호출)
 data/valuation/
   raw/                   업로드 원본 엑셀 (파일명 규칙 아래)
   annual_uploads.csv     연간 EPS·BPS·ROE (업로드)      ← ①
@@ -30,9 +31,10 @@ data/valuation/
   prices_uploads.csv     한국 일간 수정주가(DataGuide)    ← ①
   annual_yahoo.csv       연간 EPS·BPS·ROE (Yahoo)        ← ②
   payout_yahoo.csv       배당성향(미래 BPS 추정용)        ← ②
+  my_model/<티커>.csv    ✏️ 내 모델(대시보드 입력, 올해~올해+4 EPS·BPS·ROE) ← set_model.py
 output/valuation_band/
-  <섹터>_<종목>.png / .svg   차트 46종목
-  band_inputs.csv            차트에 실제로 쓴 연도별 값·출처·배수
+  <섹터>_<종목>_PER.png/.svg · _PBR.png/.svg   차트 46종목 × 2
+  band_inputs.csv            차트에 실제로 쓴 연도별 값·출처·배수 + 종가 기준일(px_date·px_last)·그림 끝 연도(chart_end)
 .github/workflows/valuation-band.yml   자동 실행
 ```
 
@@ -71,7 +73,7 @@ output/valuation_band/
 
 **연도별 값 우선순위** (같은 해에 여러 값이면 앞이 이김)
 ```
-업로드 band → 업로드 model → 업로드 actual → 업로드 consensus → Yahoo actual → Yahoo consensus
+★ 내 모델(my_model) → 업로드 band → 업로드 model → 업로드 actual → 업로드 consensus → Yahoo actual → Yahoo consensus
 ```
 - 업로드 actual 중 올해 이후 값은 버림(DataGuide 가 진행 중 연도를 실적 칸에 채워 둔 경우).
 - 미래 BPS 가 없으면 `BPS(t) = BPS(t−1) + EPS(t) × (1 − 배당성향)`, 배당성향 없으면 30%.
@@ -94,6 +96,21 @@ output/valuation_band/
 | 한 종목만 그려 보기 | `python valuation/band_chart.py --only 079550.KS,CAT` |
 | 로컬 전체 실행 | `pip install -r peergroup/requirements.txt openpyxl` → ①②③ 순서로 실행 |
 | 값 출처 확인 | `output/valuation_band/band_inputs.csv` (EPS_src 등: `upload:model`, `yahoo:consensus`, `추정:BPS+EPS×유보율` …) |
+
+## 5-1. ✏️ 내 모델 입력 (대시보드)
+
+모델을 바꾸면 엑셀을 다시 올릴 필요 없이 대시보드 「📉 PE·PB 밴드」에서 바로 넣는다.
+
+1. 종목 카드의 **✏️ 내 모델** → 표(EPS·BPS·ROE × 올해~올해+4)가 뜬다. 흐린 숫자는 지금 차트에 쓰이는 값.
+2. 엑셀 모델에서 범위를 복사해 아무 칸에나 **Ctrl+V** — 가로(연도가 열)·세로(연도가 행) 모두 되고, `EPS`·`2026E` 같은
+   머리글이 섞여 있어도 걸러낸다. ROE 가 0.253 같은 비율이면 ×100 해서 % 로 넣는다. 단위: 한국 원 / 해외 USD / ROE %.
+3. **💾 저장하고 다시 그리기** → GAS `valmodel` → `valuation-model.yml` → `data/valuation/my_model/<티커>.csv` 저장 →
+   `valuation-band.yml` 발사. 약 5분 뒤 화면이 스스로 새로고침.
+4. 규칙: 넣은 칸만 내 모델이 되고 **비운 칸은 업로드 엑셀 모델 → 컨센서스** 순으로 채워진다. 저장할 때마다 그 종목 파일을
+   통째로 새로 쓴다. **🗑 내 모델 지우기** = 파일 삭제.
+5. 그림은 올해+2(FY3)까지 그리지만 값은 올해+4 까지 저장·기록된다(`band_inputs.csv`).
+
+손으로 넣으려면: `TICKER=079550.KS MODEL="2026,EPS,13000;2027,EPS,20000" python valuation/set_model.py`
 
 ## 6. 자동화 상태 (2026-11-14 기준)
 
