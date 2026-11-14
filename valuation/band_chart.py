@@ -181,13 +181,10 @@ def label_x(v):
 
 
 def mark_last(ax, px, scale, ccy):
-    """마지막 종가에 점 + '종가 MM/DD 값' 라벨(눈에 띄게)."""
+    """마지막 종가에 점만 찍는다. 종가 날짜·값 딱지는 그림 안에 넣지 않는다 — 보고서에 그대로 붙이는 그림이라
+    (11/14 사용자) 대시보드가 그림 바로 위에 따로 보여준다(band_inputs.csv 의 px_date·px_last)."""
     d, v = px.index[-1], float(px.iloc[-1])
     ax.scatter([d], [v / scale], s=28, color=PRICE_C, edgecolor="white", linewidth=0.8, zorder=5)
-    val = f"{v:,.0f}원" if ccy == "KRW" else f"${v:,.2f}"
-    ax.text(0.015, 0.97, f"종가 {d:%Y-%m-%d}  {val}", transform=ax.transAxes, ha="left", va="top",
-            fontsize=9.5, fontweight="bold", color="#7A5C2E",
-            bbox=dict(boxstyle="round,pad=0.3", fc="#FBF6EC", ec=PRICE_C, lw=0.8), zorder=6)
 
 
 def draw(ax, px, base, mults, title, unit, scale, end, roe=None):
