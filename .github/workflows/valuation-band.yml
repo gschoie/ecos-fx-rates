@@ -41,7 +41,7 @@ jobs:
       - name: 패키지 설치
         run: |
           python -m pip install --upgrade pip
-          pip install -r peergroup/requirements.txt
+          pip install -r peergroup/requirements.txt openpyxl
 
       - name: ① 업로드 엑셀 → DB (annual_uploads·multiples·prices_uploads)
         run: python valuation/ingest_uploads.py
