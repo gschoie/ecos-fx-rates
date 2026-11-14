@@ -6,6 +6,7 @@
 
 annual 열: ticker,name,fy,item(EPS|BPS|ROE),basis,value,currency,source,asof
   basis  actual    = DataGuide 실적(발표기준)
+         band      = 다종목 파일의 기업별 밴드 시트 12월 행(엑셀 차트가 실제로 쓰는 값 — 밴드에서 최우선)
          model     = ☞추정입력 시트 값(과거는 조정 실적, 미래는 직접 추정)
          consensus = DataGuide 컨센서스(중앙값) / Bloomberg BEST(당해 이후)
   ROE 는 % 단위. 티커는 야후 형식(009540.KS, CAT, 6301.T …)으로 통일.
@@ -123,15 +124,22 @@ def parse_dg_multi(wb, s, src, asof):
         if r[3] == "결산" and num(r[2]):
             for c in cols:
                 s.add(dg_ticker(codes[c]), names[c], r[2], items[c], "actual", r[c], "KRW", src, asof)
+    # ⚠️ ☞추정입력 시트는 종목 열 순서가 GET 시트와 다르다(8~28번째) — 반드시 이 시트 자신의 머리글을 쓴다.
     e = list(wb["☞추정입력+컨센GET"].iter_rows(values_only=True))
-    for r in e:
+    enames, ecodes, eitems = e[2], e[3], e[4]
+    ecols = [c for c in range(4, len(ecodes)) if ecodes[c] and eitems[c] in ("EPS", "BPS", "ROE")]
+    con = next(i for i, r in enumerate(e) if len(r) > 4 and r[4] == "CON")     # 컨센 블록: 바로 윗줄이 코드
+    ccodes = e[con - 1]
+    c2n = {c: n for n, c in zip(enames, ecodes) if c}
+    for i, r in enumerate(e):
         if r[2] is None and num(r[3]) and 2000 < r[3] < 2040:      # 모델 블록: D=연도, ROE 는 배율
-            for c in cols:
-                v = r[c] * 100 if items[c] == "ROE" and num(r[c]) else r[c]
-                s.add(dg_ticker(codes[c]), names[c], r[3], items[c], "model", v, "KRW", src, asof)
-        if num(r[2]) and r[3] == "결산":                            # 컨센 블록: C=연도
-            for c in cols:
-                s.add(dg_ticker(codes[c]), names[c], r[2], items[c], "consensus", r[c], "KRW", src, asof)
+            for c in ecols:
+                v = r[c] * 100 if eitems[c] == "ROE" and num(r[c]) else r[c]
+                s.add(dg_ticker(ecodes[c]), enames[c], r[3], eitems[c], "model", v, "KRW", src, asof)
+        if i > con and num(r[2]) and r[3] == "결산":                # 컨센 블록: C=연도
+            for c in ecols:
+                if ccodes[c]:
+                    s.add(dg_ticker(ccodes[c]), c2n.get(ccodes[c], ""), r[2], eitems[c], "consensus", r[c], "KRW", src, asof)
     gp = list(wb["GET주가"].iter_rows(values_only=True))            # 일간 수정주가: C=날짜, D..=종목
     pcode = next(r for r in gp if r[2] == "코드")
     for r in gp:
@@ -145,7 +153,14 @@ def parse_dg_multi(wb, s, src, asof):
             continue
         nm = list(ws.iter_rows(min_row=3, max_row=3, max_col=4, values_only=True))[0][3]
         if nm in n2c:
-            s.mult(ws, dg_ticker(n2c[nm]), nm, src, asof)
+            tk = dg_ticker(n2c[nm])
+            s.mult(ws, tk, nm, src, asof)
+            # 기업별 밴드 시트 12월 행 = 엑셀 차트가 실제로 쓰는 값(basis=band). ☞추정입력 표에 임시값이
+            # 남아 있는 종목(한국항공우주 등)이 있어 밴드에서는 이 값을 가장 먼저 쓴다.
+            for y, (eps, bps, roe) in band_dec_rows(ws).items():
+                s.add(tk, nm, y, "EPS", "band", eps, "KRW", src, asof)
+                s.add(tk, nm, y, "BPS", "band", bps, "KRW", src, asof)
+                s.add(tk, nm, y, "ROE", "band", roe * 100 if num(roe) else roe, "KRW", src, asof)
 
 
 def parse_bb(wb, s, src, asof):
